@@ -4,7 +4,8 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Trail Name"
+        "popup": "Tursti - Øygardsvannet rundt",
+        "color": "#d62728"
       },
       "geometry": {
         "type": "LineString",
@@ -92,6 +93,73 @@
           [5.841595415778585, 58.7634957561194],
           [5.84187384932099, 58.76373640162549]
         ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "popup": "Nytt underlag for tursti",
+        "color": "#2ecc71"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [5.817278886403017, 58.763447626818106],
+          [5.819784788285148, 58.762797874727084],
+          [5.820573683322323, 58.76277380960164],
+          [5.820805711273465, 58.76296633013939],
+          [5.821594606310583, 58.76303852506612],
+          [5.8238220746502805, 58.76287007000383],
+          [5.824007697012291, 58.76294957561194],
+          [5.823729263469829, 58.76376046608436],
+          [5.821826634262834, 58.76426581587299],
+          [5.820434466550523, 58.765252429993495]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "popup": "Øygardsvannet",
+        "icon": "tursti",
+        "title": "Øygardsvannet",
+        "description": "Øygardsvannet er et av de vanligste og vakreste turmålene i området.",
+        "lastUpdated": "12. desember 2025",
+        "includes": "Tursti, gjerdeklyver, hvilebenker",
+        "difficulty": "Lett",
+        "images": [
+          "src/assets/yggenprofil.jpg",
+          "src/assets/sistenyttyggen.jpg",
+          "src/assets/yggengjerdeklyver.jpg"
+        ],
+        "latestPosts": [
+          {
+            "date": "12. des 2025",
+            "title": "Grøfting i kjelvekanten",
+            "excerpt": "Vi har utført grøfting langs kjelvekanten for å forbedre dreneringen og hindre vannansamlinger på stien.",
+            "images": ["src/assets/sistenyttyggen.jpg"]
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [5.84340384595734, 58.763711855469495]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "popup": "Ny gjerdeklyver",
+        "icon": "gjerdeklyver",
+        "title": "Ny Gjerdeklyver med hundeluke",
+        "description": "En ny gjedreklyver med hundeluke ble sett opp 22. juni 2022. Den gjør det enklere å krysse gjerdet her.",
+        "images": [
+          "src/assets/yggengjerdeklyver.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [5.8203177797083185, 58.765304191727694]
       }
     }
   ]

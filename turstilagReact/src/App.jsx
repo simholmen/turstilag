@@ -1,8 +1,8 @@
 import './App.css'
 import 'leaflet/dist/leaflet.css'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap, ZoomControl, LayersControl } from 'react-leaflet'
 import L from 'leaflet'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // Fix default marker icon issue
 delete L.Icon.Default.prototype._getIconUrl
@@ -12,138 +12,173 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-function MapLayers() {
+function MapLayers({ onFeatureClick }) {
   const map = useMap()
-  const osmLayerRef = useRef(null)
-  const aerialsLayerRef = useRef(null)
-  const currentLayerRef = useRef('osm')
 
   useEffect(() => {
-    // Create OSM layer
-    osmLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map)
-
-    // Create aerial layer
-    aerialsLayerRef.current = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '&copy; Esri'
-    })
-
-    // Load and add GeoJSON data
+    // Load GeoJSON
     fetch('/data/goJSONfiles.json')
-      .then(response => response.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         L.geoJSON(data, {
-          style: {
-            color: 'red',
-            weight: 3,
-            opacity: 0.8
-          }
+          style: (feature) => {
+            if (feature.geometry.type === 'LineString') {
+              return {
+                color: feature.properties?.color || 'red',
+                weight: 3,
+                opacity: 0.8
+              }
+            }
+          },
+          pointToLayer: (feature, latlng) => {
+            if (feature.properties?.icon) {
+              const iconUrl = `src/assets/${feature.properties.icon}.png`
+              const customIcon = L.icon({
+                iconUrl,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32],
+              })
+              return L.marker(latlng, { icon: customIcon })
+            }
+            return L.circleMarker(latlng, {
+              radius: 8,
+              color: '#fff',
+              weight: 2,
+              fillColor: feature.properties?.color || '#3388ff',
+              fillOpacity: 1,
+            })
+          },
+          onEachFeature: (feature, layer) => {
+            if (feature.geometry.type === 'Point') {
+              layer.on('click', () => {
+                onFeatureClick(feature)
+              })
+            }
+            if (feature.properties?.popup) {
+              layer.bindPopup(feature.properties.popup)
+            }
+          },
         }).addTo(map)
+        console.log('GeoJSON added')
       })
-      .catch(error => console.error('Error loading GeoJSON:', error))
-
-    // Add toggle button
-    const toggler = L.control({ position: 'topright' })
-    toggler.onAdd = () => {
-      const div = L.DomUtil.create('div', 'toggle-layers')
-      const button = L.DomUtil.create('button', '', div)
-      button.textContent = 'Vis flyfoto'
-      button.style.padding = '10px 15px'
-      button.style.background = 'white'
-      button.style.border = '2px solid #ccc'
-      button.style.borderRadius = '4px'
-      button.style.cursor = 'pointer'
-      button.style.fontWeight = 'bold'
-      
-      L.DomEvent.disableClickPropagation(div)
-      
-      button.addEventListener('click', () => {
-        if (currentLayerRef.current === 'osm') {
-          osmLayerRef.current.remove()
-          aerialsLayerRef.current.addTo(map)
-          button.textContent = 'Vis kart'
-          currentLayerRef.current = 'aerial'
-        } else {
-          aerialsLayerRef.current.remove()
-          osmLayerRef.current.addTo(map)
-          button.textContent = 'Vis flyfoto'
-          currentLayerRef.current = 'osm'
-        }
-      })
-      return div
-    }
-    toggler.addTo(map)
-
-    return () => {
-      toggler.remove()
-    }
-  }, [map])
+      .catch((err) => console.error('GeoJSON error:', err))
+  }, [map, onFeatureClick])
 
   return null
 }
 
-function UserLocation() {
-  const map = useMap()
-  const markerRef = useRef(null)
-  const circleRef = useRef(null)
+function Sidebar({ feature, isOpen, onClose }) {
+  if (!isOpen || !feature) return null
 
-  useEffect(() => {
-    const pulsingIcon = L.divIcon({
-      className: 'pulse-icon',
-      html: '<div class="pulse"></div>',
-      iconSize: [12, 12],
-      iconAnchor: [6, 6],
-    })
+  const { properties, geometry } = feature
+  const firstImage = properties?.images?.[0]
 
-    const onFound = (e) => {
-      const { latlng, accuracy } = e
-      if (!markerRef.current) {
-        markerRef.current = L.marker(latlng, { icon: pulsingIcon }).addTo(map).bindPopup('Du er her')
-      } else {
-        markerRef.current.setLatLng(latlng)
-      }
-      if (!circleRef.current) {
-        circleRef.current = L.circle(latlng, {
-          color: '#2A93EE',
-          weight: 2,
-          fillColor: '#2A93EE',
-          fillOpacity: 0.15,
-        }).addTo(map)
-      } else {
-        circleRef.current.setLatLng(latlng).setRadius(accuracy)
-      }
-    }
+  return (
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <button className="close-btn-float" onClick={onClose}>✕</button>
+      
+      {firstImage && (
+        <div className="sidebar-hero">
+          <img src={firstImage} alt={properties?.title} />
+        </div>
+      )}
 
-    const onError = (e) => console.error('Geolocation error:', e.message)
+      <div className="sidebar-content">
+        <h1 className="sidebar-title">{properties?.title}</h1>
 
-    map.on('locationfound', onFound)
-    map.on('locationerror', onError)
-    map.locate({ setView: true, maxZoom: 16, watch: true, enableHighAccuracy: true })
+        {properties?.description && (
+          <div className="sidebar-description">
+            <p>{properties.description}</p>
+          </div>
+        )}
 
-    return () => {
-      map.off('locationfound', onFound)
-      map.off('locationerror', onError)
-      map.stopLocate()
-      if (markerRef.current) map.removeLayer(markerRef.current)
-      if (circleRef.current) map.removeLayer(circleRef.current)
-    }
-  }, [map])
+        {(properties?.lastUpdated || properties?.difficulty || properties?.includes) && (
+          <div className="sidebar-meta">
+            {properties?.lastUpdated && (
+              <div className="meta-item">
+                <span className="meta-label">Sist arbeid:</span>
+                <span className="meta-value">{properties.lastUpdated}</span>
+              </div>
+            )}
+            {properties?.includes && (
+              <div className="meta-item">
+                <span className="meta-label">Inkluderer:</span>
+                <span className="meta-value">{properties.includes}</span>
+              </div>
+            )}
+          </div>
+        )}
 
-  return null
+        {properties?.images && properties.images.length > 0 && (
+          <div className="sidebar-gallery">
+            <h3>Bilder</h3>
+            <div className="img-grid">
+              {properties.images.map((img, idx) => (
+                <img key={idx} src={img} alt={`Gallery ${idx + 1}`} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {properties?.latestPosts && properties.latestPosts.length > 0 && (
+          <div className="sidebar-news">
+            <h3>Siste Oppdateringer</h3>
+            {properties.latestPosts.map((post, idx) => (
+              <div key={idx} className="news-item">
+                <div className="news-date">{post.date}</div>
+                <h4 className="news-title">{post.title}</h4>
+                <p className="news-excerpt">{post.excerpt}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function App() {
   const position = [58.7650, 5.8542]
+  const [selectedFeature, setSelectedFeature] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleFeatureClick = (feature) => {
+    setSelectedFeature(feature)
+    setSidebarOpen(true)
+  }
+
+  const handleCloseSidebar = () => {
+    setSidebarOpen(false)
+  }
 
   return (
-    <MapContainer center={position} zoom={14} style={{ height: '100vh', width: '100%' }}>
-      <MapLayers />
-      <UserLocation />
-      <Marker position={position}>
-        <Popup>A sample marker</Popup>
-      </Marker>
-    </MapContainer>
+    <div className="app-layout">
+      <MapContainer
+        center={position}
+        zoom={14}
+        zoomControl={false}
+        style={{ height: '100%', width: '100%' }}
+      >
+        <ZoomControl position="topright" />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="OpenStreetMap">
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Esri Flyfoto">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+        <MapLayers onFeatureClick={handleFeatureClick} />
+      </MapContainer>
+      <Sidebar feature={selectedFeature} isOpen={sidebarOpen} onClose={handleCloseSidebar} />
+    </div>
   )
 }
 
