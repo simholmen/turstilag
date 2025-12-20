@@ -139,7 +139,7 @@ body {
 .sidebar-news h3 {
   font-size: 18px;
   font-weight: 600;
-  margin: 0 0 16px 0;
+  margin: 0 0 10px 0;
   color: #1a1a1a;
 }
 .news-item {
@@ -155,7 +155,7 @@ body {
 .news-date {
   font-size: 12px;
   color: #888;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .news-title {
   font-size: 16px;

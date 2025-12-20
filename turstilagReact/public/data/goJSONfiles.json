@@ -128,16 +128,16 @@
         "includes": "Tursti, gjerdeklyver, hvilebenker",
         "difficulty": "Lett",
         "images": [
-          "src/assets/yggenprofil.jpg",
-          "src/assets/sistenyttyggen.jpg",
-          "src/assets/yggengjerdeklyver.jpg"
+          "/assets/yggenprofil.jpg",
+          "/assets/sistenyttyggen.jpg",
+          "/assets/yggengjerdeklyver.jpg"
         ],
         "latestPosts": [
           {
             "date": "12. des 2025",
             "title": "Grøfting i kjelvekanten",
             "excerpt": "Vi har utført grøfting langs kjelvekanten for å forbedre dreneringen og hindre vannansamlinger på stien.",
-            "images": ["src/assets/sistenyttyggen.jpg"]
+            "images": ["/assets/sistenyttyggen.jpg"]
           }
         ]
       },
@@ -154,7 +154,7 @@
         "title": "Ny Gjerdeklyver med hundeluke",
         "description": "En ny gjedreklyver med hundeluke ble sett opp 22. juni 2022. Den gjør det enklere å krysse gjerdet her.",
         "images": [
-          "src/assets/yggengjerdeklyver.jpg"
+          "/assets/yggengjerdeklyver.jpg"
         ]
       },
       "geometry": {

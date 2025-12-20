@@ -32,7 +32,7 @@ function MapLayers({ onFeatureClick }) {
           },
           pointToLayer: (feature, latlng) => {
             if (feature.properties?.icon) {
-              const iconUrl = `src/assets/${feature.properties.icon}.png`
+              const iconUrl = `/assets/${feature.properties.icon}.png`
               const customIcon = L.icon({
                 iconUrl,
                 iconSize: [32, 32],
