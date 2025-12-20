@@ -158,7 +158,7 @@ function App() {
         center={position}
         zoom={14}
         zoomControl={false}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', flex: 1 }}  // fill remaining space cleanly in iframe
       >
         <ZoomControl position="topright" />
         <LayersControl position="topright">

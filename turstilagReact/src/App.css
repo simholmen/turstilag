@@ -3,6 +3,10 @@
   padding: 0;
 }
 
+html, body, #root {
+  height: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
@@ -11,9 +15,10 @@ body {
 
 .app-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;           /* was 100vh */
+  width: 100%;            /* was 100vw */
   flex-direction: row-reverse;
+  overflow: hidden;       /* prevent scrollbars in iframe */
 }
 
 .sidebar {
