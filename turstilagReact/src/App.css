@@ -3,7 +3,9 @@
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
@@ -15,10 +17,13 @@ body {
 
 .app-layout {
   display: flex;
-  height: 100%;           /* was 100vh */
-  width: 100%;            /* was 100vw */
+  height: 100%;
+  /* was 100vh */
+  width: 100%;
+  /* was 100vw */
   flex-direction: row-reverse;
-  overflow: hidden;       /* prevent scrollbars in iframe */
+  overflow: hidden;
+  /* prevent scrollbars in iframe */
 }
 
 .sidebar {
@@ -30,6 +35,7 @@ body {
   transition: width 0.3s ease;
   position: relative;
 }
+
 .sidebar.open {
   width: 440px;
 }
@@ -47,12 +53,13 @@ body {
   border-radius: 50%;
   font-size: 24px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
 }
+
 .close-btn-float:hover {
   background: rgba(255, 255, 255, 1);
 }
@@ -63,6 +70,7 @@ body {
   height: 260px;
   overflow: hidden;
 }
+
 .sidebar-hero img {
   width: 100%;
   height: 100%;
@@ -91,15 +99,18 @@ body {
   border-radius: 8px;
   margin-bottom: 16px;
 }
+
 .meta-item {
   display: flex;
   justify-content: space-between;
   font-size: 14px;
 }
+
 .meta-label {
   font-weight: 600;
   color: #555;
 }
+
 .meta-value {
   color: #1a1a1a;
 }
@@ -108,6 +119,7 @@ body {
 .sidebar-description {
   margin-bottom: 20px;
 }
+
 .sidebar-description p {
   line-height: 1.6;
   color: #333;
@@ -118,17 +130,20 @@ body {
 .sidebar-gallery {
   margin-bottom: 24px;
 }
+
 .sidebar-gallery h3 {
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 12px 0;
   color: #1a1a1a;
 }
+
 .img-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
+
 .img-grid img {
   width: 100%;
   height: 160px;
@@ -141,33 +156,39 @@ body {
   border-top: 1px solid #e0e0e0;
   padding-top: 20px;
 }
+
 .sidebar-news h3 {
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 10px 0;
   color: #1a1a1a;
 }
+
 .news-item {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #f0f0f0;
 }
+
 .news-item:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
+
 .news-date {
   font-size: 12px;
   color: #888;
   margin-bottom: 6px;
 }
+
 .news-title {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 6px 0;
   color: #1a1a1a;
 }
+
 .news-excerpt {
   font-size: 14px;
   line-height: 1.5;
@@ -182,17 +203,128 @@ body {
   background: #2A93EE;
   border: 2px solid #fff;
   border-radius: 50%;
-  box-shadow: 0 0 0 rgba(42,147,238,0.4);
+  box-shadow: 0 0 0 rgba(42, 147, 238, 0.4);
   animation: pulse 2s infinite;
 }
+
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(42,147,238,0.4); }
-  70% { box-shadow: 0 0 0 12px rgba(42,147,238,0); }
-  100% { box-shadow: 0 0 0 0 rgba(42,147,238,0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(42, 147, 238, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(42, 147, 238, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(42, 147, 238, 0);
+  }
+}
+
+.pulse-ios {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(42, 147, 238, 0.28);
+  position: relative;
+  display: block;
+}
+
+.pulse-ios::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #2A93EE;
+  border: 0;
+  box-shadow: none;
+}
+
+.pulse-ios::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(42, 147, 238, 0.45);
+  animation: pulse-ios 2s infinite;
+}
+
+@keyframes pulse-ios {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.7;
+  }
+
+  60% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.pulse-icon {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+}
+
+/* Leaflet custom buttons */
+.leaflet-control.custom-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 60px ; 
+}
+
+.leaflet-control.custom-buttons button {
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  font: 14px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-control.custom-buttons button:hover {
+  background: #f3f3f3;
+}
+
+.leaflet-control.custom-buttons.leaflet-bar {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.leaflet-control.custom-buttons.leaflet-bar a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  font-size: 26px !important;
+  text-align: center;
+  text-decoration: none;
+  color: #000;
+  background: #fff;
+  border: 1px solid #ffffff !important;
+  box-shadow:  0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+
+.leaflet-control.custom-buttons.leaflet-bar a + a {
+  border-top: none !important;
 }
 
 /* Responsive */
 @media (min-width: 1200px) {
-  .sidebar.open { width: 500px; }
-  .sidebar-hero { height: 300px; }
+  .sidebar.open {
+    width: 500px;
+  }
+
+  .sidebar-hero {
+    height: 300px;
+  }
 }
