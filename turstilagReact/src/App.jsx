@@ -12,71 +12,215 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-function MapLayers({ onFeatureClick }) {
+function MapLayers({ onFeatureClick, onHubSelect }) {
   const map = useMap()
+  const hubsRef = useRef(null)
+  const relatedRef = useRef(L.featureGroup())
+  const dataRef = useRef(null)
+  const selectedGroupRef = useRef(null)
 
   useEffect(() => {
-    // Load GeoJSON
+    if (!map) return
+    map.addLayer(relatedRef.current)
+
+    const styleForFeature = (feature) => {
+      if (feature.geometry.type === 'LineString') {
+        return {
+          color: feature.properties?.color || 'red',
+          weight: 7,
+          opacity: 0.8,
+        }
+      }
+      return undefined
+    }
+
+    const pointToLayer = (feature, latlng) => {
+      if (feature.properties?.icon) {
+        const iconUrl = `/assets/${feature.properties.icon}.png`
+        const customIcon = L.icon({
+          iconUrl,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        })
+        return L.marker(latlng, { icon: customIcon })
+      }
+      return L.circleMarker(latlng, {
+        radius: 8,
+        color: '#fff',
+        weight: 2,
+        fillColor: feature.properties?.color || '#3388ff',
+        fillOpacity: 1,
+      })
+    }
+
+    const enrichHubWithRelated = (hubFeature, groupId) => {
+      // Collect all POIs and trails in this group
+      const relatedPois = (dataRef.current?.features || []).filter(
+        (f) => f.properties?.group === groupId && f.properties?.kind === 'poi'
+      )
+      const relatedTrails = (dataRef.current?.features || []).filter(
+        (f) => f.properties?.group === groupId && f.properties?.kind === 'trail'
+      )
+
+      // Merge POI data into hub
+      const enriched = { ...hubFeature }
+      enriched.properties = { ...hubFeature.properties }
+
+      // Collect all images from POIs
+      const allImages = [...(hubFeature.properties?.images || [])]
+      relatedPois.forEach((poi) => {
+        if (poi.properties?.images) {
+          allImages.push(...poi.properties.images)
+        }
+      })
+      enriched.properties.images = allImages
+
+      // Collect all descriptions and dates from POIs
+      const poiDetails = relatedPois
+        .filter((poi) => poi.properties?.description || poi.properties?.lastUpdated)
+        .map((poi) => ({
+          title: poi.properties?.title || 'POI',
+          description: poi.properties?.description,
+          lastUpdated: poi.properties?.lastUpdated,
+          images: poi.properties?.images || [],
+        }))
+
+      enriched.properties.relatedPois = poiDetails
+
+      // Set hub's lastUpdated to the most recent POI update (first POI if sorted by date)
+      if (poiDetails.length > 0 && poiDetails[0].lastUpdated) {
+        enriched.properties.hubLastUpdated = poiDetails[0].lastUpdated
+      }
+
+      // Collect trail info
+      enriched.properties.relatedTrails = relatedTrails.map((trail) => ({
+        title: trail.properties?.popup,
+        color: trail.properties?.color,
+      }))
+
+      return enriched
+    }
+
+    const showGroup = (groupId) => {
+      if (selectedGroupRef.current === groupId && relatedRef.current.getLayers().length) {
+        relatedRef.current.clearLayers()
+        selectedGroupRef.current = null
+        return
+      }
+
+      relatedRef.current.clearLayers()
+      selectedGroupRef.current = groupId
+
+      const features = (dataRef.current?.features || []).filter(
+        (f) => {
+          if (f.properties?.group !== groupId || f.properties?.kind === 'hub') return false
+          // Exclude POIs without an icon
+          if (f.properties?.kind === 'poi' && !f.properties?.icon) return false
+          return true
+        }
+      )
+
+      if (!features.length) return
+
+      const relatedGeo = L.geoJSON(
+        { type: 'FeatureCollection', features },
+        {
+          style: styleForFeature,
+          pointToLayer,
+          onEachFeature: (feature, layer) => {
+            if (feature.properties?.popup) layer.bindPopup(feature.properties.popup)
+            layer.on('click', () => onFeatureClick?.(feature))
+          },
+        }
+      )
+
+      relatedRef.current.addLayer(relatedGeo)
+
+      const line = features.find((f) => f.geometry.type === 'LineString')
+      if (line) {
+        const coords = line.geometry.coordinates
+        const mid = coords[Math.floor(coords.length / 2)]
+        const targetLatLng = L.latLng(mid[1], mid[0])
+
+        const sidebarWidth = 400
+        const offsetX = sidebarWidth / 1
+
+        const point = map.project(targetLatLng, 15)
+        point.x += offsetX
+        const adjustedLatLng = map.unproject(point, 15)
+
+        map.setView(adjustedLatLng, 15, { animate: true, duration: 0.5 })
+      } else {
+        try {
+          const bounds = relatedRef.current.getBounds()
+          if (bounds.isValid()) {
+            const sidebarWidth = 400
+            map.fitBounds(bounds, {
+              paddingTopLeft: [sidebarWidth + 40, 40],
+              paddingBottomRight: [40, 40],
+              maxZoom: 16,
+            })
+          }
+        } catch {}
+      }
+    }
+
     fetch('/data/goJSONfiles.json')
       .then((res) => res.json())
       .then((data) => {
-        L.geoJSON(data, {
-          style: (feature) => {
-            if (feature.geometry.type === 'LineString') {
-              return {
-                color: feature.properties?.color || 'red',
-                weight: 3,
-                opacity: 0.8
+        dataRef.current = data
+
+        hubsRef.current = L.geoJSON(data, {
+          filter: (feature) => feature.properties?.kind === 'hub',
+          pointToLayer,
+          onEachFeature: (feature, layer) => {
+            const groupId = feature.properties?.group
+            if (feature.properties?.popup) layer.bindPopup(feature.properties.popup)
+
+            layer.on('click', () => {
+              if (selectedGroupRef.current === groupId && relatedRef.current.getLayers().length) {
+                relatedRef.current.clearLayers()
+                selectedGroupRef.current = null
+                onFeatureClick?.(null)
+              } else {
+                // Enrich hub with POI data before showing
+                const enrichedHub = enrichHubWithRelated(feature, groupId)
+                onFeatureClick?.(enrichedHub)
+                onHubSelect?.(layer, groupId)
+                if (groupId) showGroup(groupId)
               }
-            }
-          },
-          pointToLayer: (feature, latlng) => {
-            if (feature.properties?.icon) {
-              const iconUrl = `/assets/${feature.properties.icon}.png`
-              const customIcon = L.icon({
-                iconUrl,
-                iconSize: [32, 32],
-                iconAnchor: [16, 32],
-                popupAnchor: [0, -32],
-              })
-              return L.marker(latlng, { icon: customIcon })
-            }
-            return L.circleMarker(latlng, {
-              radius: 8,
-              color: '#fff',
-              weight: 2,
-              fillColor: feature.properties?.color || '#3388ff',
-              fillOpacity: 1,
             })
           },
-          onEachFeature: (feature, layer) => {
-            if (feature.geometry.type === 'Point') {
-              layer.on('click', () => {
-                onFeatureClick(feature)
-              })
-            }
-            if (feature.properties?.popup) {
-              layer.bindPopup(feature.properties.popup)
-            }
-          },
         }).addTo(map)
-        console.log('GeoJSON added')
       })
       .catch((err) => console.error('GeoJSON error:', err))
-  }, [map, onFeatureClick])
+
+    return () => {
+      if (hubsRef.current) map.removeLayer(hubsRef.current)
+      if (relatedRef.current) map.removeLayer(relatedRef.current)
+    }
+  }, [map, onFeatureClick, onHubSelect])
 
   return null
 }
 
-function Sidebar({ feature, isOpen, onClose }) {
+function Sidebar({ feature, isOpen, onClose, selectedHubLayer }) {
   if (!isOpen || !feature) return null
 
-  const { properties, geometry } = feature
+  const { properties } = feature
   const firstImage = properties?.images?.[0]
+
+  const handleClose = () => {
+    if (selectedHubLayer) {
+      selectedHubLayer.fire('click')
+    }
+    onClose()
+  }
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <button className="close-btn-float" onClick={onClose}>✕</button>
+      <button className="close-btn-float" onClick={handleClose}>✕</button>
 
       {firstImage && (
         <div className="sidebar-hero">
@@ -93,12 +237,12 @@ function Sidebar({ feature, isOpen, onClose }) {
           </div>
         )}
 
-        {(properties?.lastUpdated || properties?.difficulty || properties?.includes) && (
+        {(properties?.lastUpdated || properties?.hubLastUpdated || properties?.includes) && (
           <div className="sidebar-meta">
-            {properties?.lastUpdated && (
+            {(properties?.lastUpdated || properties?.hubLastUpdated) && (
               <div className="meta-item">
                 <span className="meta-label">Sist arbeid:</span>
-                <span className="meta-value">{properties.lastUpdated}</span>
+                <span className="meta-value">{properties?.hubLastUpdated || properties?.lastUpdated}</span>
               </div>
             )}
             {properties?.includes && (
@@ -110,27 +254,48 @@ function Sidebar({ feature, isOpen, onClose }) {
           </div>
         )}
 
+        {/* Related trails */}
+        {properties?.relatedTrails && properties.relatedTrails.length > 0 && (
+          <div className="sidebar-trails">
+            <h3>Stier</h3>
+            {properties.relatedTrails.map((trail, idx) => (
+              <div key={idx} style={{ marginBottom: '8px', fontSize: '14px' }}>
+                <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: trail.color, borderRadius: '2px', marginRight: '8px' }}></span>
+                {trail.title}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* POI details */}
+        {properties?.relatedPois && properties.relatedPois.length > 0 && (
+          <div className="sidebar-pois">
+            <h3>Siste Oppdateringer</h3>
+            {properties.relatedPois.map((poi, idx) => (
+              <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #eee' }}>
+                <h4 style={{ marginBottom: '4px' }}>{poi.title}</h4>
+                {poi.lastUpdated && <p style={{ fontSize: '12px', color: '#666' }}>{poi.lastUpdated}</p>}
+                {poi.description && <p>{poi.description}</p>}
+                {poi.images && poi.images.length > 0 && (
+                  <div className="img-grid">
+                    {poi.images.map((img, imgIdx) => (
+                      <img key={imgIdx} src={img} alt={`POI ${idx} ${imgIdx}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {properties?.images && properties.images.length > 0 && (
           <div className="sidebar-gallery">
-            <h3>Bilder</h3>
+            <h3>Alle Bilder</h3>
             <div className="img-grid">
               {properties.images.map((img, idx) => (
                 <img key={idx} src={img} alt={`Gallery ${idx + 1}`} />
               ))}
             </div>
-          </div>
-        )}
-
-        {properties?.latestPosts && properties.latestPosts.length > 0 && (
-          <div className="sidebar-news">
-            <h3>Siste Oppdateringer</h3>
-            {properties.latestPosts.map((post, idx) => (
-              <div key={idx} className="news-item">
-                <div className="news-date">{post.date}</div>
-                <h4 className="news-title">{post.title}</h4>
-                <p className="news-excerpt">{post.excerpt}</p>
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -211,6 +376,7 @@ function App() {
   const position = [58.7650, 5.8542]
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [selectedHubLayer, setSelectedHubLayer] = useState(null) // NEW
   const [userLocation, setUserLocation] = useState(null)
   const [geoError, setGeoError] = useState(null)
   const [permissionState, setPermissionState] = useState(null)
@@ -282,19 +448,28 @@ function App() {
   }
 
   const handleFeatureClick = (feature) => {
-    setSelectedFeature(feature)
-    setSidebarOpen(true)
+    if (feature === null) {
+      setSidebarOpen(false)
+      setSelectedHubLayer(null)
+    } else {
+      setSelectedFeature(feature)
+      setSidebarOpen(true)
+    }
+  }
+
+  const handleHubSelect = (layer, groupId) => {
+    setSelectedHubLayer(layer)
   }
 
   const handleCloseSidebar = () => {
     setSidebarOpen(false)
+    setSelectedHubLayer(null)
   }
 
   return (
-    <div className="app-layout" ref={appRef}> 
+    <div className="app-layout" ref={appRef}>
       <div ref={mapWrapperRef} style={{ height: '100%', flex: 1, position: 'relative' }}>
         <MapContainer center={position} zoom={14} zoomControl={false} style={{ height: '100%', width: '100%' }}>
-          {/* Keep desired control order; your CSS can enforce stacking if needed */}
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="OpenStreetMap">
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -310,10 +485,15 @@ function App() {
 
           {userLocation && <CenterOnUser userLocation={userLocation} />}
           {userLocation && <UserLocationMarker position={userLocation} />}
-          <MapLayers onFeatureClick={handleFeatureClick} />
+          <MapLayers onFeatureClick={handleFeatureClick} onHubSelect={handleHubSelect} />
         </MapContainer>
       </div>
-      <Sidebar feature={selectedFeature} isOpen={sidebarOpen} onClose={handleCloseSidebar} />
+      <Sidebar 
+        feature={selectedFeature} 
+        isOpen={sidebarOpen} 
+        onClose={handleCloseSidebar}
+        selectedHubLayer={selectedHubLayer}
+      />
     </div>
   )
 }

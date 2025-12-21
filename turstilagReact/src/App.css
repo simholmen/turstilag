@@ -196,6 +196,52 @@ body {
   margin: 0;
 }
 
+/* POI Details */
+.sidebar-pois {
+  margin-bottom: 24px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 20px;
+}
+
+.sidebar-pois h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+}
+
+.sidebar-pois > div {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sidebar-pois > div:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sidebar-pois h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  color: #1a1a1a;
+}
+
+.sidebar-pois p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #555;
+  margin: 0 0 8px 0;
+}
+
+.sidebar-pois p:first-of-type {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
 /* Optional pulse for UserLocation */
 .pulse {
   width: 12px;
