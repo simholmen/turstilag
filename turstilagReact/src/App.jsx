@@ -102,7 +102,7 @@ function MapLayers({ onFeatureClick, onHubSelect }) {
       return enriched
     }
 
-    const showGroup = (groupId) => {
+    const showGroup = (groupId, hubLatLng) => {
       if (selectedGroupRef.current === groupId && relatedRef.current.getLayers().length) {
         relatedRef.current.clearLayers()
         selectedGroupRef.current = null
@@ -137,32 +137,8 @@ function MapLayers({ onFeatureClick, onHubSelect }) {
 
       relatedRef.current.addLayer(relatedGeo)
 
-      const line = features.find((f) => f.geometry.type === 'LineString')
-      if (line) {
-        const coords = line.geometry.coordinates
-        const mid = coords[Math.floor(coords.length / 2)]
-        const targetLatLng = L.latLng(mid[1], mid[0])
-
-        const sidebarWidth = 400
-        const offsetX = sidebarWidth / 1
-
-        const point = map.project(targetLatLng, 15)
-        point.x += offsetX
-        const adjustedLatLng = map.unproject(point, 15)
-
-        map.setView(adjustedLatLng, 15, { animate: true, duration: 0.5 })
-      } else {
-        try {
-          const bounds = relatedRef.current.getBounds()
-          if (bounds.isValid()) {
-            const sidebarWidth = 400
-            map.fitBounds(bounds, {
-              paddingTopLeft: [sidebarWidth + 40, 40],
-              paddingBottomRight: [40, 40],
-              maxZoom: 16,
-            })
-          }
-        } catch {}
+      if (hubLatLng) {
+        map.setView(hubLatLng, 15, { animate: true, duration: 0.5 })
       }
     }
 
@@ -188,7 +164,7 @@ function MapLayers({ onFeatureClick, onHubSelect }) {
                 const enrichedHub = enrichHubWithRelated(feature, groupId)
                 onFeatureClick?.(enrichedHub)
                 onHubSelect?.(layer, groupId)
-                if (groupId) showGroup(groupId)
+                if (groupId) showGroup(groupId, layer.getLatLng())
               }
             })
           },
