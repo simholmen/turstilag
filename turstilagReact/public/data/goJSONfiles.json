@@ -1340,7 +1340,7 @@
         "popup": "Flassavatnet",
         "description": "Flassavatnet er et vakkert turmål i området.",
         "includes": "Tursti, rundtur, gjerdeklyver, broer",
-        "difficulty": "Lett",
+        "difficulty": "Middels",
         "images": [
           "/assets/flassavatnetHub.jpg"
         ]
@@ -1372,6 +1372,74 @@
         "coordinates": [
           5.8731779001084305,
           58.78399197166544
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "poi",
+        "group": "flassavatnet",
+        "popup": "Ny gjerdeklyver",
+        "icon": "gjerdeklyver",
+        "title": "Ny Gjerdeklyver",
+        "lastUpdated": "05. desember 2025",
+        "description": "En ny gjedreklyver ble sett opp",
+        "images": [
+          "/assets/flassavatnetgjerdeklyver05-12-25-2.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.880655613308079,
+          58.78998946575854
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "kodlidalen",
+        "title": "Kodlidalen",
+        "kind": "hub",
+        "group": "kodlidalen",
+        "icon": "tursti",
+        "popup": "Kodlidalen",
+        "description": "Kodlidalen er et vakkert turområdet i området.",
+        "includes": "Tursti, gjerdeklyvere, broer",
+        "difficulty": "Lett",
+        "images": [
+          "/assets/kodlidalenHub.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.883218764035092,
+          58.77970314325344
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "poi",
+        "group": "kodlidalen",
+        "popup": "Ny gjerdeklyver",
+        "icon": "gjerdeklyver",
+        "title": "Ny Gjerdeklyver",
+        "lastUpdated": "05. desember 2025",
+        "description": "En ny gjedreklyver ble sett opp",
+        "images": [
+          "/assets/kodlidalengjerdeklyver05-12-25.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.880613428065658,
+          58.77912685579989
         ]
       }
     }
