@@ -1,6 +1,6 @@
 import './App.css'
 import 'leaflet/dist/leaflet.css'
-import { MapContainer, TileLayer, useMap, ZoomControl, LayersControl } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap, ZoomControl, LayersControl, Popup, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import { useEffect, useRef, useState } from 'react'
 
@@ -77,7 +77,7 @@ function Sidebar({ feature, isOpen, onClose }) {
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <button className="close-btn-float" onClick={onClose}>✕</button>
-      
+
       {firstImage && (
         <div className="sidebar-hero">
           <img src={firstImage} alt={properties?.title} />
@@ -138,10 +138,148 @@ function Sidebar({ feature, isOpen, onClose }) {
   )
 }
 
+function CenterOnUser({ userLocation }) {
+  const map = useMap()
+  const hasCentered = useRef(false)
+  useEffect(() => {
+    if (!map || !userLocation || hasCentered.current) return
+    map.flyTo(userLocation, 16, { duration: 0.5 })
+    hasCentered.current = true
+  }, [map, userLocation])
+  return null
+}
+
+function UserLocationMarker({ position }) {
+  const map = useMap()
+  const paneName = 'userPane'
+
+  if (map && !map.getPane(paneName)) {
+    const pane = map.createPane(paneName)
+    pane.style.zIndex = 800
+    pane.style.pointerEvents = 'auto'
+  }
+  if (!map || !map.getPane(paneName)) return null
+
+  const pulseIcon = L.divIcon({
+    html: '<span class="pulse-ios"></span>',
+    className: 'pulse-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  })
+
+  return (
+    <Marker pane={paneName} position={position} icon={pulseIcon}>
+      <Popup>Du er her</Popup>
+    </Marker>
+  )
+}
+
+function MapButtons({ onLocate, onFullscreen, isFullscreen }) {
+  const map = useMap()
+  useEffect(() => {
+    const Control = L.Control.extend({
+      onAdd() {
+        const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-buttons')
+
+        // Fullscreen first
+        const btnFs = L.DomUtil.create('a', '', div)
+        btnFs.href = '#'
+        btnFs.title = isFullscreen ? 'Avslutt fullskjerm' : 'Fullskjerm'
+        btnFs.innerText = '⛶'
+        btnFs.onclick = (e) => { e.preventDefault(); onFullscreen() }
+
+        // Then Locate
+        const btnLocate = L.DomUtil.create('a', '', div)
+        btnLocate.href = '#'
+        btnLocate.title = 'Bruk min posisjon'
+        btnLocate.innerText = '📍'
+        btnLocate.onclick = (e) => { e.preventDefault(); onLocate() }
+
+        L.DomEvent.disableClickPropagation(div)
+        L.DomEvent.disableScrollPropagation(div)
+        return div
+      }
+    })
+    const control = new Control({ position: 'topright' })
+    map.addControl(control)
+    return () => map.removeControl(control)
+  }, [map, onLocate, onFullscreen, isFullscreen])
+  return null
+}
+
 function App() {
   const position = [58.7650, 5.8542]
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userLocation, setUserLocation] = useState(null)
+  const [geoError, setGeoError] = useState(null)
+  const [permissionState, setPermissionState] = useState(null)
+  const watchIdRef = useRef(null)
+  const appRef = useRef(null)         // NEW
+  const mapWrapperRef = useRef(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const startWatch = () => {
+    if (watchIdRef.current != null) return
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGeoError(null)
+        setUserLocation([pos.coords.latitude, pos.coords.longitude])
+      },
+      (err) => setGeoError(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+    )
+  }
+
+  const requestLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setGeoError(new Error('Geolocation not available'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoError(null)
+        setUserLocation([pos.coords.latitude, pos.coords.longitude])
+        startWatch()
+      },
+      (err) => setGeoError(err),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
+  useEffect(() => {
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((res) => {
+        setPermissionState(res.state) // 'granted' | 'prompt' | 'denied'
+      }).catch(() => { })
+    }
+    // Try once on mount; some browsers still require a user gesture, so the button is provided
+    requestLocation()
+    return () => {
+      if (watchIdRef.current != null && navigator.geolocation.clearWatch) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const toggleFullscreen = () => {
+    const el = appRef.current
+    if (!document.fullscreenElement) {
+      if (el?.requestFullscreen) el.requestFullscreen()
+      // Safari fallback
+      else if (el?.webkitRequestFullscreen) el.webkitRequestFullscreen()
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen()
+      // Safari fallback
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+    }
+  }
 
   const handleFeatureClick = (feature) => {
     setSelectedFeature(feature)
@@ -153,30 +291,28 @@ function App() {
   }
 
   return (
-    <div className="app-layout">
-      <MapContainer
-        center={position}
-        zoom={14}
-        zoomControl={false}
-        style={{ height: '100%', flex: 1 }}  // fill remaining space cleanly in iframe
-      >
-        <ZoomControl position="topright" />
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="OpenStreetMap">
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Esri Flyfoto">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-        <MapLayers onFeatureClick={handleFeatureClick} />
-      </MapContainer>
+    <div className="app-layout" ref={appRef}> 
+      <div ref={mapWrapperRef} style={{ height: '100%', flex: 1, position: 'relative' }}>
+        <MapContainer center={position} zoom={14} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+          {/* Keep desired control order; your CSS can enforce stacking if needed */}
+          <LayersControl position="topright">
+            <LayersControl.BaseLayer checked name="OpenStreetMap">
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Esri Flyfoto">
+              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community" />
+            </LayersControl.BaseLayer>
+          </LayersControl>
+          <ZoomControl position="topright" />
+          <MapButtons onLocate={requestLocation} onFullscreen={toggleFullscreen} isFullscreen={isFullscreen} />
+
+          {userLocation && <CenterOnUser userLocation={userLocation} />}
+          {userLocation && <UserLocationMarker position={userLocation} />}
+          <MapLayers onFeatureClick={handleFeatureClick} />
+        </MapContainer>
+      </div>
       <Sidebar feature={selectedFeature} isOpen={sidebarOpen} onClose={handleCloseSidebar} />
     </div>
   )
