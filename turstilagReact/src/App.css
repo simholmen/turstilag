@@ -40,6 +40,10 @@ body {
   width: 440px;
 }
 
+.sidebar.open.collapsed {
+  width: 0px;
+}
+
 /* Floating close button */
 .close-btn-float {
   position: absolute;
@@ -61,6 +65,30 @@ body {
 }
 
 .close-btn-float:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+/* Floating collapse button */
+.collapse-btn-float {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.collapse-btn-float:hover {
   background: rgba(255, 255, 255, 1);
 }
 
@@ -362,6 +390,36 @@ body {
 
 .leaflet-control.custom-buttons.leaflet-bar a + a {
   border-top: none !important;
+}
+
+/* Floating buttons in sidebar */
+.sidebar-floating-buttons {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-float-btn {
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.sidebar-float-btn:hover {
+  background: rgba(255, 255, 255, 1);
 }
 
 /* Responsive */

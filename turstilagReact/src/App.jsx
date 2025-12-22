@@ -23,6 +23,7 @@ function App() {
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedHubLayer, setSelectedHubLayer] = useState(null)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   const appRef = useRef(null)
   const { isFullscreen, toggleFullscreen } = useFullscreen(appRef)
@@ -42,6 +43,10 @@ function App() {
   const handleCloseSidebar = () => {
     setSidebarOpen(false)
     setSelectedHubLayer(null)
+  }
+
+  const handleCollapseSidebar = () => {
+    setIsCollapsed(!isCollapsed)
   }
 
   return (
@@ -68,6 +73,14 @@ function App() {
           <ZoomControl position="topright" />
 
           <MapButtons onLocate={requestLocation} onFullscreen={toggleFullscreen} isFullscreen={isFullscreen} />
+          
+          {sidebarOpen && isCollapsed && (
+            <div className="sidebar-floating-buttons">
+              <button className="sidebar-float-btn" onClick={handleCloseSidebar} title="Lukk">✕</button>
+              <button className="sidebar-float-btn" onClick={handleCollapseSidebar} title="Åpne">▶</button>
+            </div>
+          )}
+
           {userLocation && <CenterOnUser userLocation={userLocation} />}
           {userLocation && <UserLocationMarker position={userLocation} />}
           <MapLayers onFeatureClick={handleFeatureClick} onHubSelect={handleHubSelect} />
@@ -79,6 +92,8 @@ function App() {
         isOpen={sidebarOpen}
         onClose={handleCloseSidebar}
         selectedHubLayer={selectedHubLayer}
+        isCollapsed={isCollapsed}
+        onCollapse={handleCollapseSidebar}
       />
     </div>
   )
