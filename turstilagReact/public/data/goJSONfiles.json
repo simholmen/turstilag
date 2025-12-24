@@ -1442,6 +1442,52 @@
           58.77912685579989
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bursfjellet",
+        "title": "Bursfjellet",
+        "kind": "hub",
+        "group": "bursfjellet",
+        "icon": "tursti",
+        "popup": "Bursfjellet",
+        "description": "Bursfjellet er et vakkert turområdet i området.",
+        "includes": "Turstier, gjerdeklyvere, broer",
+        "difficulty": "Lett",
+        "images": [
+          "/assets/bursfjelletHub.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.8435331697126,
+          58.73599125953092
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "poi",
+        "group": "bursfjellet",
+        "popup": "Ny gjerdeklyver",
+        "icon": "gjerdeklyver",
+        "title": "Ny Gjerdeklyver",
+        "lastUpdated": "27. november 2025",
+        "description": "Heilt nytt gjerde. Det er både godt, høgt, og nesten umuleg å passera med god stil. Dette skal ein heller ikkje prøva på. Ny Ålgård turstitrapp er også montert, ca. 20 meter aust for det gamle passeringspunktet. Tusen takk til Endre og Erlend Haus for framkøyring av material, og tusen takk til Per Einar Lillejordet og Terje Lima for lang fjelltur og god montering av trappa",
+        "images": [
+          "/assets/bursfjelletgjerdeklyver27-11-25.jpg"
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.84835710912094,
+          58.738954889583795
+        ]
+      }
     }
   ]
 }
