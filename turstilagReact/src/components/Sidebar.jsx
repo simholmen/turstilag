@@ -13,6 +13,11 @@ export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, is
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+      {isCollapsed && (
+        <button className="collapse-btn-float" onClick={onCollapse}>
+          ▶
+        </button>
+      )}
       {!isCollapsed && (
         <>
           <button className="close-btn-float" onClick={handleClose}>✕</button>
@@ -33,12 +38,14 @@ export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, is
               </div>
             )}
 
-            {(properties?.lastUpdated || properties?.hubLastUpdated || properties?.includes) && (
+            {(properties?.relatedPois?.length > 0 || properties?.includes) && (
               <div className="sidebar-meta">
-                {(properties?.lastUpdated || properties?.hubLastUpdated) && (
+                {properties?.relatedPois?.length > 0 && (
                   <div className="meta-item">
                     <span className="meta-label">Sist arbeid:</span>
-                    <span className="meta-value">{properties?.hubLastUpdated || properties?.lastUpdated}</span>
+                    <span className="meta-value">
+                      {properties?.relatedPois?.[0]?.properties?.lastUpdated || "Usikkert"}
+                    </span>
                   </div>
                 )}
                 {properties?.includes && (
@@ -55,8 +62,8 @@ export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, is
                 <h3>Stier</h3>
                 {properties.relatedTrails.map((trail, idx) => (
                   <div key={idx} style={{ marginBottom: '8px', fontSize: '14px' }}>
-                    <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: trail.color, borderRadius: '2px', marginRight: '8px' }}></span>
-                    {trail.title}
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: trail.properties?.color, borderRadius: '2px', marginRight: '8px' }}></span>
+                    {trail.properties?.title}
                   </div>
                 ))}
               </div>
@@ -67,12 +74,14 @@ export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, is
                 <h3>Siste Oppdateringer</h3>
                 {properties.relatedPois.map((poi, idx) => (
                   <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #eee' }}>
-                    <h4 style={{ marginBottom: '4px' }}>{poi.title}</h4>
-                    {poi.lastUpdated && <p style={{ fontSize: '12px', color: '#666' }}>{poi.lastUpdated}</p>}
-                    {poi.description && <p>{poi.description}</p>}
-                    {poi.images?.length > 0 && (
+                    <h4 style={{ marginBottom: '4px' }}>{poi.properties?.title}</h4>
+                    {poi.properties?.lastUpdated && (
+                      <p style={{ fontSize: '12px', color: '#666' }}>{poi.properties.lastUpdated}</p>
+                    )}
+                    {poi.properties?.description && <p>{poi.properties.description}</p>}
+                    {poi.properties?.images?.length > 0 && (
                       <div className="img-grid">
-                        {poi.images.map((img, imgIdx) => (
+                        {poi.properties.images.map((img, imgIdx) => (
                           <img key={imgIdx} src={img} alt={`POI ${idx} ${imgIdx}`} />
                         ))}
                       </div>
@@ -82,11 +91,11 @@ export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, is
               </div>
             )}
 
-            {properties?.images?.length > 0 && (
+            {properties?.relatedPois?.some(poi => poi.properties?.images?.length > 0) && (
               <div className="sidebar-gallery">
                 <h3>Alle Bilder</h3>
                 <div className="img-grid">
-                  {properties.images.map((img, idx) => (
+                  {properties.relatedPois.flatMap(poi => poi.properties?.images || []).map((img, idx) => (
                     <img key={idx} src={img} alt={`Gallery ${idx + 1}`} />
                   ))}
                 </div>
