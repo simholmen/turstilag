@@ -1,85 +1,102 @@
 import L from 'leaflet'
 import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
-import { enrichHubWithRelated, styleForFeature, pointToLayer, groupFeatures } from '../utils/geojson'
+import { styleForFeature, pointToLayer } from '../utils/geojson'
 
-export default function MapLayers({ onFeatureClick, onHubSelect }) {
+let relatedGroup = null
+
+export default function MapLayers({ features = [], onFeatureClick, onHubSelect }) {
   const map = useMap()
   const hubsRef = useRef(null)
-  const relatedRef = useRef(L.featureGroup())
-  const dataRef = useRef(null)
-  const selectedGroupRef = useRef(null)
 
   useEffect(() => {
     if (!map) return
-    map.addLayer(relatedRef.current)
 
-    const showGroup = (groupId, hubLatLng) => {
-      if (selectedGroupRef.current === groupId && relatedRef.current.getLayers().length) {
-        relatedRef.current.clearLayers()
-        selectedGroupRef.current = null
-        return
-      }
+    // Create the related group once per map instance
+    if (!relatedGroup) {
+      relatedGroup = L.featureGroup().addTo(map)
+    }
 
-      relatedRef.current.clearLayers()
-      selectedGroupRef.current = groupId
+    // Clear previous hub layer
+    if (hubsRef.current) map.removeLayer(hubsRef.current)
+    hubsRef.current = null
 
-      const features = groupFeatures(dataRef.current, groupId)
-      if (!features.length) return
+    if (!features || features.length === 0) return
+
+    // Show related features for a selected hub group
+    const showGroup = (groupId) => {
+      relatedGroup.clearLayers()
+
+      const relatedFeatures = features.filter(f => {
+        const hasValidGeometry = f.geometry && 
+          (f.geometry.type === 'Point' || 
+           f.geometry.type === 'LineString' || 
+           f.geometry.type === 'Polygon') &&
+          f.geometry.coordinates
+        return hasValidGeometry && f.properties?.group === groupId && f.properties?.kind !== 'hub'
+      })
+
+      if (!relatedFeatures.length) return
 
       const relatedGeo = L.geoJSON(
-        { type: 'FeatureCollection', features },
+        { type: 'FeatureCollection', features: relatedFeatures },
         {
-          style: styleForFeature,
+          style: (feature) => styleForFeature(feature),
           pointToLayer,
           onEachFeature: (feature, layer) => {
-            if (feature.properties?.popup) layer.bindPopup(feature.properties.popup)
-            layer.on('click', () => onFeatureClick?.(feature))
+            layer.on('click', () => onFeatureClick(feature))
           },
         }
       )
 
-      relatedRef.current.addLayer(relatedGeo)
+      relatedGroup.addLayer(relatedGeo)
+    }
 
-      if (hubLatLng) {
-        map.setView(hubLatLng, 15, { animate: true, duration: 0.5 })
+    // Enrich hub with related POIs and trails
+    const enrichHub = (hubFeature) => {
+      const groupId = hubFeature.properties?.group
+      const relatedPois = features
+        .filter(f => f.properties?.group === groupId && f.properties?.kind === 'poi')
+        .sort((a, b) => {
+          const dateA = a.properties?.lastUpdated ? new Date(a.properties.lastUpdated) : new Date(0)
+          const dateB = b.properties?.lastUpdated ? new Date(b.properties.lastUpdated) : new Date(0)
+          return dateB - dateA // newest first
+        })
+
+      const relatedTrails = features
+        .filter(f => f.properties?.group === groupId && f.properties?.kind === 'trail')
+
+      return {
+        ...hubFeature,
+        properties: {
+          ...hubFeature.properties,
+          relatedPois,
+          relatedTrails,
+        },
       }
     }
 
-    fetch('/data/goJSONfiles.json')
-      .then((res) => res.json())
-      .then((data) => {
-        dataRef.current = data
-
-        hubsRef.current = L.geoJSON(data, {
-          filter: (feature) => feature.properties?.kind === 'hub',
-          pointToLayer,
-          onEachFeature: (feature, layer) => {
+    // Add only hubs
+    hubsRef.current = L.geoJSON(
+      { type: 'FeatureCollection', features: features.filter(f => f.properties?.kind === 'hub') },
+      {
+        pointToLayer,
+        onEachFeature: (feature, layer) => {
+          layer.on('click', () => {
+            onHubSelect(layer)
+            const enrichedHub = enrichHub(feature)
+            onFeatureClick(enrichedHub)
             const groupId = feature.properties?.group
-            if (feature.properties?.popup) layer.bindPopup(feature.properties.popup)
-
-            layer.on('click', () => {
-              if (selectedGroupRef.current === groupId && relatedRef.current.getLayers().length) {
-                relatedRef.current.clearLayers()
-                selectedGroupRef.current = null
-                onFeatureClick?.(null)
-              } else {
-                const enrichedHub = enrichHubWithRelated(dataRef.current, feature, groupId)
-                onFeatureClick?.(enrichedHub)
-                onHubSelect?.(layer, groupId)
-                if (groupId) showGroup(groupId, layer.getLatLng())
-              }
-            })
-          },
-        }).addTo(map)
-      })
-      .catch((err) => console.error('GeoJSON error:', err))
+            if (groupId) showGroup(groupId)
+          })
+        },
+      }
+    ).addTo(map)
 
     return () => {
       if (hubsRef.current) map.removeLayer(hubsRef.current)
-      if (relatedRef.current) map.removeLayer(relatedRef.current)
     }
-  }, [map, onFeatureClick, onHubSelect])
+  }, [map, features, onFeatureClick, onHubSelect])
 
   return null
 }

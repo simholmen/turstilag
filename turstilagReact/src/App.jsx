@@ -2,13 +2,14 @@ import './App.css'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, TileLayer, ZoomControl, LayersControl } from 'react-leaflet'
 import L from 'leaflet'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MapLayers from './components/MapLayers'
 import Sidebar from './components/Sidebar'
 import MapButtons from './components/MapButtons'
-import { CenterOnUser, UserLocationMarker } from './components/UserLocation'
+import { UserLocationMarker } from './components/UserLocation'
 import { useGeolocation } from './hooks/useGeolocation'
 import { useFullscreen } from './hooks/useFullscreen'
+import { supabase } from './lib/supabase'
 
 // Fix default marker icon issue
 delete L.Icon.Default.prototype._getIconUrl
@@ -24,10 +25,55 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedHubLayer, setSelectedHubLayer] = useState(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [features, setFeatures] = useState([])
 
   const appRef = useRef(null)
   const { isFullscreen, toggleFullscreen } = useFullscreen(appRef)
   const { userLocation, requestLocation } = useGeolocation()
+
+  useEffect(() => {
+    const loadFeatures = async () => {
+      const { data, error } = await supabase
+        .from('map_features_geojson')
+        .select('*')
+
+      if (error) {
+        console.error('Supabase error:', error)
+        return
+      }
+
+      console.log('Raw data from Supabase:', data)
+
+      const mapped = (data || [])
+        .filter((row) => row.geometry)
+        .map((row) => ({
+          type: 'Feature',
+          geometry: row.geometry,
+          properties: {
+            id: row.id,
+            slug: row.slug,
+            title: row.title,
+            kind: row.kind,
+            group: row.feature_group,
+            icon: row.icon,
+            popup: row.popup,
+            description: row.description,
+            includes: row.includes,
+            difficulty: row.difficulty,
+            lastUpdated: row.last_updated,
+            images: row.images || [],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            color: row.color, // Add this line
+          },
+        }))
+
+      console.log('Mapped features:', mapped)
+      setFeatures(mapped)
+    }
+
+    loadFeatures()
+  }, [])
 
   const handleFeatureClick = (feature) => {
     if (feature === null) {
@@ -50,42 +96,47 @@ function App() {
   }
 
   return (
-    <div className="app-layout" ref={appRef}>
-      <div style={{ height: '100%', flex: 1, position: 'relative' }}>
-        <MapContainer center={position} zoom={14} zoomControl={false} style={{ height: '100%', width: '100%' }}>
-          <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Kartverket Topografisk">
-              <TileLayer
-                url="https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png'"
-                attribution='&copy; <a href="https://www.kartverket.no/">Kartverket</a>'
-                maxZoom={18}
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="OpenStreetMap">
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Esri Flyfoto">
-              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution="Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community" />
-            </LayersControl.BaseLayer>
-          </LayersControl>
-          <ZoomControl position="topright" />
+    <div className="app-layout">
+      <MapContainer
+        center={position}
+        zoom={13}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={false}
+      >
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Kartverket Topografisk">
+            <TileLayer
+              url="https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png"
+              attribution='&copy; <a href="https://www.kartverket.no/">Kartverket</a>'
+              maxZoom={18}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap">
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Esri Flyfoto">
+            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community" />
+          </LayersControl.BaseLayer>
+        </LayersControl>
 
-          <MapButtons onLocate={requestLocation} onFullscreen={toggleFullscreen} isFullscreen={isFullscreen} />
-          
-          {sidebarOpen && isCollapsed && (
-            <div className="sidebar-floating-buttons">
-              <button className="sidebar-float-btn" onClick={handleCloseSidebar} title="Lukk">✕</button>
-              <button className="sidebar-float-btn" onClick={handleCollapseSidebar} title="Åpne">▶</button>
-            </div>
-          )}
+        <ZoomControl position="bottomright" />
 
-          {userLocation && <CenterOnUser userLocation={userLocation} />}
-          {userLocation && <UserLocationMarker position={userLocation} />}
-          <MapLayers onFeatureClick={handleFeatureClick} onHubSelect={handleHubSelect} />
-        </MapContainer>
-      </div>
+        <MapLayers
+          features={features}
+          onFeatureClick={handleFeatureClick}
+          onHubSelect={handleHubSelect}
+        />
+
+        {userLocation && <UserLocationMarker position={userLocation} />}
+
+        <MapButtons
+          onLocate={requestLocation}
+          onFullscreen={toggleFullscreen}
+          isFullscreen={isFullscreen}
+        />
+      </MapContainer>
 
       <Sidebar
         feature={selectedFeature}
