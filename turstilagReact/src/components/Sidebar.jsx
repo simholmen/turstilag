@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 
 export default function Sidebar({ feature, isOpen, onClose, selectedHubLayer, isCollapsed, onCollapse }) {
   if (!isOpen || !feature) return null

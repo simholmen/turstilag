@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export function useGeolocation() {
   const [userLocation, setUserLocation] = useState(null)
@@ -18,7 +18,7 @@ export function useGeolocation() {
     )
   }
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     if (!('geolocation' in navigator)) {
       setGeoError(new Error('Geolocation not available'))
       return
@@ -32,7 +32,7 @@ export function useGeolocation() {
       (err) => setGeoError(err),
       { enableHighAccuracy: true, timeout: 10000 }
     )
-  }
+  }, [])
 
   useEffect(() => {
     if (navigator.permissions?.query) {
@@ -40,13 +40,16 @@ export function useGeolocation() {
         setPermissionState(res.state)
       }).catch(() => {})
     }
-    requestLocation()
+    const timerId = window.setTimeout(() => {
+      requestLocation()
+    }, 0)
     return () => {
+      window.clearTimeout(timerId)
       if (watchIdRef.current != null && navigator.geolocation.clearWatch) {
         navigator.geolocation.clearWatch(watchIdRef.current)
       }
     }
-  }, [])
+  }, [requestLocation])
 
   return { userLocation, geoError, permissionState, requestLocation }
 }
