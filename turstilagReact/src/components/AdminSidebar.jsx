@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Sidebar from './Sidebar'
 
 const EMPTY_FORM = {
   kind: '',
@@ -6,7 +7,7 @@ const EMPTY_FORM = {
   group: '',
   description: '',
   popup: '',
-  icon: 'gjerdeklyver',
+  icon: '',
   difficulty: 'lett',
   color: '#d62728',
   slug: '',
@@ -24,7 +25,7 @@ const toFormState = (feature) => {
     group: p.group || '',
     description: p.description || '',
     popup: p.popup || '',
-    icon: p.icon || 'gjerdeklyver',
+    icon: p.icon || '',
     difficulty: p.difficulty || 'lett',
     color: p.color || '#d62728',
     slug: p.slug || '',
@@ -34,7 +35,11 @@ const toFormState = (feature) => {
   }
 }
 
-const ICON_OPTIONS = ['gjerdeklyver', 'sti']
+const ICON_OPTIONS = [
+  { value: 'invisible', label: 'Usynlig' },
+  { value: 'gjerdeklyver', label: 'Gjerdeklyver' },
+  { value: 'sti', label: 'Sti' },
+]
 const DIFFICULTY_OPTIONS = ['lett', 'middels', 'hard']
 const COLOR_OPTIONS = ['#d62728', '#2ecc71']
 const INCLUDES_OPTIONS = ['tursti', 'gjerdeklyver', 'hvilebenker']
@@ -50,9 +55,11 @@ export default function AdminSidebar({
   availableGroups = [],
 }) {
   const [form, setForm] = useState(EMPTY_FORM)
+  const [mode, setMode] = useState('view')
 
   useEffect(() => {
     setForm(toFormState(feature))
+    setMode(feature?.properties?.id ? 'view' : 'edit')
   }, [feature])
 
   useEffect(() => {
@@ -62,12 +69,12 @@ export default function AdminSidebar({
     }))
   }, [form.kind])
 
-  const isExisting = Boolean(feature?.properties?.id)
-  const geometryType = feature?.geometry?.type || '-'
   const finalLastUpdated = form.lastUpdated.trim() || new Date().toISOString().split('T')[0]
   const selectedIncludes = form.includes
     ? form.includes.split(',').map((s) => s.trim()).filter(Boolean)
     : []
+  const isExisting = Boolean(feature?.properties?.id)
+  const geometryType = feature?.geometry?.type || '-'
 
   const updateField = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }))
@@ -83,16 +90,18 @@ export default function AdminSidebar({
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!feature) return
+
     const finalForm = {
       ...form,
       lastUpdated: finalLastUpdated,
     }
-    // Client-side validation for new features
+
     if (!isExisting) {
       if (!finalForm.kind) {
         alert('Velg en type for objektet før du lagrer.')
         return
       }
+
       if (!finalForm.group) {
         alert('Velg en gruppe for objektet før du lagrer.')
         return
@@ -104,20 +113,42 @@ export default function AdminSidebar({
 
   if (!isOpen || !feature) return null
 
+  if (mode === 'view' && isExisting) {
+    return (
+      <Sidebar
+        feature={feature}
+        isOpen={isOpen}
+        onClose={onClose}
+        selectedHubLayer={null}
+        isCollapsed={isCollapsed}
+        onCollapse={onCollapse}
+        actionButton={<button type="button" className="admin-secondary-btn" onClick={() => setMode('edit')}>Rediger</button>}
+      />
+    )
+  }
+
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
       {isCollapsed && (
-        <button className="collapse-btn-float" onClick={onCollapse}>
+        <button type="button" className="collapse-btn-float" onClick={onCollapse}>
           ▶
         </button>
       )}
 
       {!isCollapsed && (
         <>
-          <button className="close-btn-float" onClick={onClose}>✕</button>
-          <button className="collapse-btn-float" onClick={onCollapse}>◀</button>
+          <button type="button" className="close-btn-float" onClick={onClose}>✕</button>
+          <button type="button" className="collapse-btn-float" onClick={onCollapse}>◀</button>
 
           <div className="sidebar-content admin-content">
+            <div className="admin-view-actions">
+              {isExisting && (
+                <button type="button" className="admin-secondary-btn" onClick={() => setMode('view')}>
+                  Tilbake til visning
+                </button>
+              )}
+            </div>
+
             <h1 className="sidebar-title">{isExisting ? 'Rediger objekt' : 'Nytt objekt'}</h1>
             <p className="admin-hint">
               Geometri: <strong>{geometryType}</strong>
@@ -127,11 +158,11 @@ export default function AdminSidebar({
               <label className="admin-field">
                 <span>Type *</span>
                 <select
-                    value={form.kind}
-                    onChange={(e) => updateField('kind', e.target.value)}
-                    required={!isExisting}
+                  value={form.kind}
+                  onChange={(e) => updateField('kind', e.target.value)}
+                  required={!isExisting}
                 >
-                    <option value="">-- Velg type --</option>
+                  <option value="">-- Velg type --</option>
                   <option value="poi">Punkt (POI)</option>
                   <option value="gjerdeklyver">Gjerdeklyver</option>
                   <option value="trail">Linje (sti)</option>
@@ -183,8 +214,8 @@ export default function AdminSidebar({
                   onChange={(e) => updateField('icon', e.target.value)}
                 >
                   {ICON_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
+                    <option key={opt.value || 'empty'} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>

@@ -2,7 +2,7 @@ import L from 'leaflet'
 import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
 import { styleForFeature, pointToLayer } from '../utils/geojson'
-import { featureMatchesHub } from '../models/features'
+import { dedupeFeatures, featureMatchesHub } from '../models/features'
 
 let relatedGroup = null
 
@@ -38,15 +38,19 @@ export default function MapLayers({ features = [], onFeatureClick, onHubSelect }
     const showRelatedFeatures = (hubFeature) => {
       relatedGroup.clearLayers()
 
-      const relatedFeatures = features.filter((candidate) => {
+      const relatedFeatures = dedupeFeatures(features.filter((candidate) => {
+        const geometryType = candidate.geometry?.type
         const hasValidGeometry = candidate.geometry &&
-          (candidate.geometry.type === 'Point' ||
-           candidate.geometry.type === 'LineString' ||
-           candidate.geometry.type === 'Polygon' ||
-           candidate.geometry.type === 'MultiPolygon') &&
+          (geometryType === 'Point' ||
+           geometryType === 'LineString' ||
+           geometryType === 'MultiLineString' ||
+           geometryType === 'Polygon' ||
+           geometryType === 'MultiPolygon') &&
           candidate.geometry.coordinates
-        return hasValidGeometry && candidate.properties?.kind !== 'hub' && featureMatchesHub(hubFeature, candidate)
-      })
+        const isLineFeature = geometryType === 'LineString' || geometryType === 'MultiLineString'
+        const isVisiblePoint = geometryType === 'Point' && !candidate.properties?.noMarker
+        return hasValidGeometry && candidate.properties?.kind !== 'hub' && (isLineFeature || isVisiblePoint) && featureMatchesHub(hubFeature, candidate)
+      }))
 
       if (!relatedFeatures.length) return
 
@@ -66,16 +70,17 @@ export default function MapLayers({ features = [], onFeatureClick, onHubSelect }
 
     // Enrich hub with related point features and trails
     const enrichHub = (hubFeature) => {
-      const relatedPois = features
+      const relatedPois = dedupeFeatures(features
         .filter((candidate) => candidate.properties?.kind !== 'trail' && candidate.properties?.kind !== 'hub' && featureMatchesHub(hubFeature, candidate))
         .sort((a, b) => {
           const dateA = a.properties?.lastUpdated ? new Date(a.properties.lastUpdated) : new Date(0)
           const dateB = b.properties?.lastUpdated ? new Date(b.properties.lastUpdated) : new Date(0)
           return dateB - dateA // newest first
-        })
+        }))
 
-      const relatedTrails = features
+      const relatedTrails = dedupeFeatures(features
         .filter((candidate) => candidate.properties?.kind === 'trail' && featureMatchesHub(hubFeature, candidate))
+      )
 
       return {
         ...hubFeature,
@@ -89,7 +94,7 @@ export default function MapLayers({ features = [], onFeatureClick, onHubSelect }
 
     // Add only hubs
     hubsRef.current = L.geoJSON(
-      { type: 'FeatureCollection', features: features.filter(f => f.properties?.kind === 'hub') },
+      { type: 'FeatureCollection', features: dedupeFeatures(features.filter(f => f.properties?.kind === 'hub')) },
       {
         pointToLayer,
         onEachFeature: (feature, layer) => {
@@ -123,7 +128,7 @@ export default function MapLayers({ features = [], onFeatureClick, onHubSelect }
     ).addTo(map)
 
     // Add labels centered inside polygons for hubs
-    const hubFeatures = features.filter(f => f.properties?.kind === 'hub')
+    const hubFeatures = dedupeFeatures(features.filter(f => f.properties?.kind === 'hub'))
     hubsLabelRef.current = L.layerGroup()
     hubsLabelMapRef.current = new Map()
     const computeCentroid = (geometry) => {

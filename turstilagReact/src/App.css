@@ -518,6 +518,34 @@ body {
   padding-top: 60px;
 }
 
+.admin-view-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.admin-secondary-btn {
+  border: 1px solid #c9d2de;
+  background: #fff;
+  color: #1c2a3a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.admin-secondary-btn:hover {
+  background: #f4f7fb;
+}
+
+.sidebar-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .admin-hint {
   margin-bottom: 16px;
   color: #4c5765;

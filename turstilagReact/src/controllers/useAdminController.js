@@ -60,9 +60,6 @@ export function useAdminController() {
       },
     }
 
-    delete cleanFeature.properties.relatedPois
-    delete cleanFeature.properties.relatedTrails
-
     openSidebarForFeature(cleanFeature)
   }, [openSidebarForFeature])
 

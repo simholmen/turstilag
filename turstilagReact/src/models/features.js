@@ -1,22 +1,42 @@
 import { supabase } from '../lib/supabase'
 
-const FEATURE_SOURCE_QUERIES = [
-  { source: 'view', table: 'all_features_geojson', featureKind: 'hub', filter: (query) => query.eq('kind', 'hub') },
-  { source: 'view', table: 'map_features_geojson', featureKind: 'trail', filter: (query) => query },
-  { source: 'raw', table: 'gjerdeklyvere', featureKind: 'gjerdeklyver', filter: (query) => query },
-  { source: 'raw', table: 'other_points', featureKind: 'poi', filter: (query) => query },
-]
+// Canonical read source: keep frontend feature loading on one view to avoid overlap/duplicates.
+const FEATURE_VIEW_TABLE = 'all_features_geojson'
 const FEATURE_KIND_TABLES = {
   hub: 'hubs',
   gjerdeklyver: 'gjerdeklyvere',
   poi: 'other_points',
-  trail: 'map_features',
+  trail: 'other_points',
 }
 
 const POINT_TABLES = new Set(['gjerdeklyvere', 'other_points'])
 
 const normalizeImages = (images) => (Array.isArray(images) ? images.filter(Boolean) : [])
 const normalizeKey = (value) => (value === null || value === undefined ? null : String(value).trim().toLowerCase())
+
+export const getFeatureIdentityKey = (feature) => {
+  const properties = feature?.properties || {}
+  const geometry = feature?.geometry ? JSON.stringify(feature.geometry) : ''
+  const kind = normalizeKey(properties.kind) || 'unknown'
+  const id = normalizeKey(properties.id)
+  const slug = normalizeKey(properties.slug)
+  const title = normalizeKey(properties.title)
+  const group = normalizeKey(properties.group)
+
+  // Use geometry before group so distinct points in the same group don't collapse.
+  return [kind, id || slug || title || geometry || group || 'unknown'].join('::')
+}
+
+export const dedupeFeatures = (features = []) => {
+  const seen = new Set()
+
+  return features.filter((feature) => {
+    const key = getFeatureIdentityKey(feature)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
 
 export const getFeatureRelationKeys = (feature) => {
   const properties = feature?.properties || {}
@@ -142,9 +162,13 @@ export const featureMatchesHub = (hubFeature, candidateFeature) => {
 export const rowToFeature = (row) => {
   const geometry = row.geometry ?? row.geom ?? null
   const kind = (row.kind || row._featureKind || '').toLowerCase()
+  const icon = typeof row.icon === 'string' ? row.icon.trim() : row.icon
+  const normalizedIcon = icon === 'invisible' ? '' : icon
   const group = kind === 'hub'
     ? row.slug ?? row.feature_group ?? row.group ?? row.group_id ?? row.hub_id ?? null
     : row.feature_group ?? row.group ?? row.group_id ?? row.hub_id ?? row.slug ?? null
+  const isPointKind = kind === 'poi' || kind === 'gjerdeklyver'
+  const isInvisible = row.no_marker ?? row.noMarker ?? row.nomarker ?? icon === 'invisible' ?? false
 
   return {
     type: 'Feature',
@@ -156,7 +180,8 @@ export const rowToFeature = (row) => {
       title: row.title,
       kind,
       group,
-      icon: row.icon,
+      noMarker: isInvisible || (isPointKind && !normalizedIcon),
+      icon: normalizedIcon,
       popup: row.popup,
       description: row.description,
       includes: row.includes,
@@ -177,21 +202,16 @@ export const mapRowsToFeatures = (rows = []) => (
 )
 
 export const loadFeatures = async () => {
-  const results = await Promise.all(
-    FEATURE_SOURCE_QUERIES.map(async ({ table, featureKind, filter }) => {
-      const query = filter(supabase.from(table).select('*'))
-      const { data, error } = await query
+  const { data, error } = await supabase.from(FEATURE_VIEW_TABLE).select('*')
 
-      if (error) throw error
+  if (error) throw error
 
-      return (data || []).map((row) => ({
-        ...row,
-        _featureKind: featureKind || row.kind || 'trail',
-      }))
-    })
-  )
+  const rows = (data || []).map((row) => ({
+    ...row,
+    _featureKind: row.kind || 'trail',
+  }))
 
-  return mapRowsToFeatures(results.flat())
+  return dedupeFeatures(mapRowsToFeatures(rows))
 }
 
 const getImagesForPayload = (feature, form) => {
@@ -274,11 +294,10 @@ const buildPointPayload = async (feature, form, kind) => {
   return payload
 }
 
-const buildTrailPayload = (feature, form) => ({
+const buildTrailPayload = async (feature, form) => ({
   slug: form.slug.trim() || null,
   title: form.title.trim(),
   kind: form.kind.trim() || 'trail',
-  feature_group: form.group.trim() || null,
   icon: form.icon.trim() || null,
   popup: form.popup.trim() || null,
   description: form.description.trim() || null,
@@ -288,6 +307,7 @@ const buildTrailPayload = (feature, form) => ({
   images: getImagesForPayload(feature, form),
   color: form.color.trim() || null,
   geom: feature.geometry,
+  hub_id: await resolveHubId(form.group.trim()),
 })
 
 const buildPayloadForKind = async (feature, form, kind) => {
@@ -295,7 +315,7 @@ const buildPayloadForKind = async (feature, form, kind) => {
   if (kind === 'gjerdeklyver' || kind === 'poi') {
     return { table: FEATURE_KIND_TABLES[kind], payload: await buildPointPayload(feature, form, kind) }
   }
-  if (kind === 'trail') return { table: 'map_features', payload: buildTrailPayload(feature, form) }
+  if (kind === 'trail') return { table: FEATURE_KIND_TABLES.trail, payload: await buildTrailPayload(feature, form) }
 
   throw new Error(`Ukjent objekttype: ${kind}`)
 }
@@ -333,7 +353,7 @@ export const saveFeature = async (feature, form) => {
   console.debug('[saveFeature] kind=', kind, '-> table=', target.table)
   const id = feature?.properties?.id
   const currentKind = (feature?.properties?.kind || '').toLowerCase()
-  const currentTable = FEATURE_KIND_TABLES[currentKind] || (currentKind === 'trail' ? 'map_features' : null)
+  const currentTable = FEATURE_KIND_TABLES[currentKind] || (currentKind === 'trail' ? FEATURE_KIND_TABLES.trail : null)
 
   if (!id) {
     return selectInsertedRow(target.table, target.payload)
