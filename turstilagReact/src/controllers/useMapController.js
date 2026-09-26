@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { useFeatures } from '../hooks/useFeatures'
 
 export function useMapController() {
-  const { features } = useFeatures()
+  const { features, loading } = useFeatures()
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedHubLayer, setSelectedHubLayer] = useState(null)
@@ -34,6 +34,7 @@ export function useMapController() {
 
   return {
     features,
+    loading,
     selectedFeature,
     sidebarOpen,
     selectedHubLayer,

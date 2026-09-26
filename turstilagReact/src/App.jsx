@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import { MapContainer, ZoomControl, LayersControl } from 'react-leaflet'
 import BaseLayers from './components/BaseLayers'
 import L from 'leaflet'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import MapLayers from './components/MapLayers'
 import Sidebar from './components/Sidebar'
 import MapButtons from './components/MapButtons'
@@ -25,6 +25,7 @@ function App() {
   const appRef = useRef(null)
   const {
     features,
+    loading,
     selectedFeature,
     sidebarOpen,
     selectedHubLayer,
@@ -36,6 +37,8 @@ function App() {
   } = useMapController()
   const { isFullscreen, toggleFullscreen } = useFullscreen(appRef)
   const { userLocation, requestLocation } = useGeolocation()
+  const [noDataDismissed, setNoDataDismissed] = useState(false)
+  const showNoDataPopup = !loading && features.length === 0 && !noDataDismissed
 
   return (
     <div className="app-layout" ref={appRef}>
@@ -44,6 +47,19 @@ function App() {
           <div className="sidebar-floating-buttons">
             <button className="sidebar-float-btn" onClick={handleCloseSidebar} title="Lukk">✕</button>
             <button className="sidebar-float-btn" onClick={handleCollapseSidebar} title="Åpne">▶</button>
+          </div>
+        )}
+
+        {showNoDataPopup && (
+          <div className="no-data-overlay" role="alertdialog" aria-labelledby="no-data-title">
+            <div className="no-data-popup">
+              <h2 id="no-data-title">Ingen data lastet inn</h2>
+              <p>
+                Ta kontakt med Simen på{' '}
+                <a href="mailto:simen.emil.wiig@gmail.com">simen.emil.wiig@gmail.com</a>
+              </p>
+              <button className="no-data-close" onClick={() => setNoDataDismissed(true)}>Lukk</button>
+            </div>
           </div>
         )}
 
