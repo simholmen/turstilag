@@ -4,7 +4,8 @@ import ImageCropModal from './ImageCropModal'
 
 // Every new or re-cropped image goes through a queue shown one at a time in the crop modal.
 // Queue items: { blob, name, replaces } where `replaces` is the stored image a re-crop swaps out.
-export default function AdminImageField({ images, folder, onChange, onUploadingChange }) {
+// variant 'grid' edits the whole list, 'hero' only edits the first (main) image.
+export default function AdminImageField({ images, folder, onChange, onUploadingChange, variant = 'grid' }) {
   const [queue, setQueue] = useState([])
   const [isUploading, setIsUploading] = useState(false)
   const [loadingImage, setLoadingImage] = useState(null)
@@ -17,11 +18,16 @@ export default function AdminImageField({ images, folder, onChange, onUploadingC
   const isBusy = queue.length > 0 || isUploading || loadingImage !== null
   useEffect(() => onUploadingChange(isBusy), [isBusy, onUploadingChange])
 
+  const isHero = variant === 'hero'
+  const main = images[0]
+
   const handleFiles = (event) => {
     const files = Array.from(event.target.files || [])
     event.target.value = ''
     setError(null)
-    setQueue((prev) => [...prev, ...files.map((file) => ({ blob: file, name: file.name, replaces: null }))])
+    // In hero mode a new upload replaces the current main image
+    const replaces = isHero ? main ?? null : null
+    setQueue((prev) => [...prev, ...files.map((file) => ({ blob: file, name: file.name, replaces }))])
   }
 
   const handleRecrop = async (img) => {
@@ -45,7 +51,7 @@ export default function AdminImageField({ images, folder, onChange, onUploadingC
       onChange(
         current.replaces
           ? images.map((img) => (img === current.replaces ? path : img))
-          : [...images, path],
+          : isHero ? [path, ...images] : [...images, path],
       )
     } catch (err) {
       console.error('Image upload failed:', err)
@@ -57,51 +63,63 @@ export default function AdminImageField({ images, folder, onChange, onUploadingC
   }
 
   const handleCancel = () => setQueue((prev) => prev.slice(1))
-
   const removeImage = (img) => onChange(images.filter((existing) => existing !== img))
-
   const moveToFront = (img) => onChange([img, ...images.filter((existing) => existing !== img)])
 
   return (
-    <div className="admin-field">
-      <span>Bilder</span>
+    <div className="wl-field">
+      <span className="wl-label">{isHero ? 'Hovedbilde' : 'Bilder'}</span>
 
-      {images.length > 0 && (
-        <div className="admin-image-grid">
-          {images.map((img, idx) => (
-            <div key={img} className="admin-image-item">
-              <img src={imageUrl(img)} alt={`Bilde ${idx + 1}`} />
-              {idx === 0 ? (
-                <span className="admin-image-badge">Hovedbilde</span>
-              ) : (
-                <button type="button" className="admin-image-action left" onClick={() => moveToFront(img)} title="Gjør til hovedbilde">
-                  ★
-                </button>
-              )}
-              <button type="button" className="admin-image-action" onClick={() => removeImage(img)} title="Fjern bilde">
-                ✕
+      {isHero ? (
+        main ? (
+          <div className="wl-hero-edit-image">
+            <img src={imageUrl(main)} alt="" />
+            <div className="wl-hero-edit-actions">
+              <label className={`wl-pill-btn ${isBusy ? 'disabled' : ''}`}>
+                Bytt bilde
+                <input type="file" accept="image/*" onChange={handleFiles} disabled={isBusy} hidden />
+              </label>
+              <button type="button" className="wl-pill-btn" onClick={() => handleRecrop(main)} disabled={isBusy}>
+                {loadingImage === main ? '…' : 'Beskjær'}
               </button>
-              <button
-                type="button"
-                className="admin-image-action bottom"
-                onClick={() => handleRecrop(img)}
-                disabled={isBusy}
-                title="Beskjær"
-              >
-                {loadingImage === img ? '…' : '✂'}
-              </button>
+              <button type="button" className="wl-round-btn" onClick={() => removeImage(main)} title="Fjern bilde">✕</button>
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <label className={`wl-upload-hero ${isBusy ? 'disabled' : ''}`}>
+            {isBusy ? 'Laster opp…' : '+ Last opp bilde'}
+            <input type="file" accept="image/*" onChange={handleFiles} disabled={isBusy} hidden />
+          </label>
+        )
+      ) : (
+        <>
+          <div className="wl-image-grid">
+            {images.map((img, idx) => (
+              <div key={img} className="wl-image-item">
+                <img src={imageUrl(img)} alt={`Bilde ${idx + 1}`} />
+                {idx === 0 ? (
+                  <span className="wl-image-main">Hovedbilde</span>
+                ) : (
+                  <button type="button" className="wl-image-make-main" onClick={() => moveToFront(img)} title="Gjør til hovedbilde">
+                    Gjør til hoved
+                  </button>
+                )}
+                <button type="button" className="wl-image-corner" onClick={() => removeImage(img)} title="Fjern bilde">✕</button>
+                <button type="button" className="wl-image-corner second" onClick={() => handleRecrop(img)} disabled={isBusy} title="Beskjær">
+                  {loadingImage === img ? '…' : '✂'}
+                </button>
+              </div>
+            ))}
+            <label className={`wl-image-add ${isBusy ? 'disabled' : ''}`}>
+              {isBusy ? 'Laster opp…' : '+ Legg til'}
+              <input type="file" accept="image/*" multiple onChange={handleFiles} disabled={isBusy} hidden />
+            </label>
+          </div>
+          <span className="wl-hint">Hovedbildet vises i listen og øverst i detaljen.</span>
+        </>
       )}
 
-      <label className="admin-secondary-btn admin-image-upload">
-        + Legg til bilder
-        <input type="file" accept="image/*" multiple onChange={handleFiles} disabled={isBusy} hidden />
-      </label>
-
-      {error && <small className="admin-login-error">{error}</small>}
-      <small>Bildene lagres når du trykker lagre. Første bilde vises øverst.</small>
+      {error && <span className="wl-error">{error}</span>}
 
       {current && (
         <ImageCropModal

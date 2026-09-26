@@ -12,10 +12,11 @@ export function useFullscreen(targetRef) {
   const toggleFullscreen = () => {
     const el = targetRef.current
     if (!document.fullscreenElement) {
-      if (el?.requestFullscreen) el.requestFullscreen()
+      // Rejected e.g. inside an iframe without allowfullscreen
+      if (el?.requestFullscreen) el.requestFullscreen().catch((err) => console.warn('Fullscreen refused:', err))
       else if (el?.webkitRequestFullscreen) el.webkitRequestFullscreen()
     } else {
-      if (document.exitFullscreen) document.exitFullscreen()
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {})
       else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
     }
   }

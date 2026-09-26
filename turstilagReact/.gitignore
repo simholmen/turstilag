@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Facebook photos already uploaded to Supabase storage
+import/fb-photos/
+import/fb-photos-2/
+import/fb-photos-3/
+import/fb-photos-4/
+import/fb-photos-5/
