@@ -1,4 +1,5 @@
 import React from 'react'
+import { imageUrl } from '../lib/images'
 
 const renderMetaItem = (label, value) => {
   if (!value && value !== 0) return null
@@ -47,7 +48,7 @@ export default function Sidebar({
 
           {firstImage && (
             <div className="sidebar-hero">
-              <img src={firstImage} alt={properties?.title} />
+              <img src={imageUrl(firstImage)} alt={properties?.title} />
             </div>
           )}
 
@@ -124,7 +125,7 @@ export default function Sidebar({
                         {poi.properties?.images?.length > 0 && (
                           <div className="img-grid">
                             {poi.properties.images.map((img, imgIdx) => (
-                              <img key={imgIdx} src={img} alt={`POI ${idx} ${imgIdx}`} />
+                              <img key={imgIdx} src={imageUrl(img)} alt={`POI ${idx} ${imgIdx}`} />
                             ))}
                           </div>
                         )}
@@ -138,7 +139,7 @@ export default function Sidebar({
                     <h3>Alle Bilder</h3>
                     <div className="img-grid">
                       {properties.relatedPois.flatMap(poi => poi.properties?.images || []).map((img, idx) => (
-                        <img key={idx} src={img} alt={`Gallery ${idx + 1}`} />
+                        <img key={idx} src={imageUrl(img)} alt={`Gallery ${idx + 1}`} />
                       ))}
                     </div>
                   </div>
@@ -149,7 +150,7 @@ export default function Sidebar({
                     <h3>Alle bilder</h3>
                     <div className="img-grid">
                       {properties.images.map((img, idx) => (
-                        <img key={idx} src={img} alt={`Gallery ${idx + 1}`} />
+                        <img key={idx} src={imageUrl(img)} alt={`Gallery ${idx + 1}`} />
                       ))}
                     </div>
                   </div>

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { deleteImages } from '../lib/images'
 
 // Canonical read source: keep frontend feature loading on one view to avoid overlap/duplicates.
 const FEATURE_VIEW_TABLE = 'all_features_geojson'
@@ -214,21 +215,11 @@ export const loadFeatures = async () => {
   return dedupeFeatures(mapRowsToFeatures(rows))
 }
 
-const getImagesForPayload = (feature, form) => {
-  const formImages = typeof form?.imagesText === 'string'
-    ? form.imagesText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-    : []
-
-  if (formImages.length > 0) return formImages
-
-  const existingImages = normalizeImages(feature?.properties?.images)
-  if (existingImages.length > 0) return existingImages
-
-  return ['/assets/yggenprofil.jpg']
-}
+const getImagesForPayload = (feature, form) => (
+  Array.isArray(form?.images)
+    ? normalizeImages(form.images)
+    : normalizeImages(feature?.properties?.images)
+)
 
 const findHubIdByColumn = async (column, value) => {
   const { data, error } = await supabase
@@ -367,5 +358,16 @@ export const saveFeature = async (feature, form) => {
     throw new Error('Objektet må lagres i samme tabell som det ble hentet fra.')
   }
 
-  return updateExistingRow(target.table, id, target.payload)
+  const updated = await updateExistingRow(target.table, id, target.payload)
+
+  // Only remove files once the row no longer points at them
+  const removedImages = normalizeImages(feature?.properties?.images)
+    .filter((img) => !target.payload.images.includes(img))
+  try {
+    await deleteImages(removedImages)
+  } catch (error) {
+    console.error('Deleting removed images failed:', error)
+  }
+
+  return updated
 }

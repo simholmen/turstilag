@@ -1,0 +1,2 @@
+-- Test data for local development. Runs after migrations on `npm run db:reset`.
+-- Never runs against the production database.

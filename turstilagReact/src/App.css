@@ -108,9 +108,10 @@ body {
 }
 
 /* Hero Image */
+/* Keep in sync with HERO_ASPECT in src/lib/images.js so crops match what's shown */
 .sidebar-hero {
   width: 100%;
-  height: 260px;
+  aspect-ratio: 5 / 3;
   overflow: hidden;
 }
 
@@ -442,25 +443,51 @@ body {
   .sidebar.open {
     width: 500px;
   }
-
-  .sidebar-hero {
-    height: 300px;
-  }
 }
 
-.admin-banner {
+/* Top-left stack: banner, draw tools, collapsed-sidebar buttons */
+.admin-overlay {
   position: absolute;
   top: 16px;
   left: 16px;
   z-index: 1100;
   display: flex;
-  gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  /* leave room for the layers control on the right */
+  max-width: min(720px, calc(100% - 80px));
+  pointer-events: none;
+}
+
+.admin-overlay > * {
+  pointer-events: auto;
+}
+
+.admin-overlay .sidebar-floating-buttons {
+  position: static;
+  flex-direction: row;
+}
+
+.admin-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   background: rgba(255, 255, 255, 0.95);
   padding: 10px 14px;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  max-width: min(720px, calc(100vw - 32px));
+}
+
+.admin-banner-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.admin-banner .admin-secondary-btn {
+  padding: 4px 10px;
 }
 
 .admin-banner span {
@@ -474,14 +501,9 @@ body {
 }
 
 .admin-draw-tools {
-  position: absolute;
-  top: 72px;
-  left: 16px;
-  z-index: 1100;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: min(720px, calc(100vw - 32px));
 }
 
 .admin-tool-btn {
@@ -628,17 +650,6 @@ body {
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
-  .admin-banner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .admin-draw-tools {
-    top: 120px;
-  }
-}
 /* No data popup */
 .no-data-overlay {
   position: absolute;
@@ -689,4 +700,181 @@ body {
 
 .no-data-close:hover {
   background: #111;
+}
+
+/* Admin login */
+.admin-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #f0f4f8;
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.admin-login-card h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.admin-login-card a {
+  color: #0057b8;
+  font-size: 14px;
+  text-align: center;
+}
+
+.admin-login-error {
+  margin: 0;
+  color: #b3261e;
+  font-size: 14px;
+}
+
+.admin-banner .admin-user {
+  color: #677483;
+  font-size: 13px;
+}
+
+/* Admin image upload */
+.admin-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.admin-image-item {
+  position: relative;
+}
+
+.admin-image-item img {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.admin-image-action {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.admin-image-action.left {
+  right: auto;
+  left: 4px;
+}
+
+.admin-image-badge {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #0057b8;
+  color: #fff;
+  font-size: 11px;
+}
+
+.admin-image-upload {
+  align-self: flex-start;
+}
+
+.admin-image-action.bottom {
+  top: auto;
+  bottom: 4px;
+}
+
+.admin-image-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Image crop modal */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.crop-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.crop-modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.crop-modal-area {
+  position: relative;
+  height: min(60vh, 420px);
+  background: #222;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crop-modal-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crop-modal-aspects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crop-modal-zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.crop-modal-zoom input {
+  flex: 1;
+}
+
+.crop-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.crop-modal-actions .admin-save-btn {
+  margin-top: 0;
+  padding: 8px 18px;
 }

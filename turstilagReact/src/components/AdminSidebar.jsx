@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Sidebar from './Sidebar'
+import AdminImageField from './AdminImageField'
 
 const EMPTY_FORM = {
   kind: '',
@@ -13,7 +14,7 @@ const EMPTY_FORM = {
   slug: '',
   includes: '',
   lastUpdated: '',
-  imagesText: '',
+  images: [],
 }
 
 const toFormState = (feature) => {
@@ -31,7 +32,7 @@ const toFormState = (feature) => {
     slug: p.slug || '',
     includes: p.includes || '',
     lastUpdated: p.lastUpdated || '',
-    imagesText: (p.images || []).join('\n'),
+    images: p.images || [],
   }
 }
 
@@ -56,6 +57,7 @@ export default function AdminSidebar({
 }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [mode, setMode] = useState('view')
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     setForm(toFormState(feature))
@@ -294,15 +296,15 @@ export default function AdminSidebar({
                 </select>
               </label>
 
-              <label className="admin-field">
-                <span>Bilder (placeholder: /assets/yggenprofil.jpg)</span>
-                <div className="admin-placeholder-notice">
-                  Bruker placeholder: /assets/yggenprofil.jpg
-                </div>
-              </label>
+              <AdminImageField
+                images={form.images}
+                folder={form.kind || 'misc'}
+                onChange={(images) => updateField('images', images)}
+                onUploadingChange={setIsUploading}
+              />
 
-              <button type="submit" className="admin-save-btn" disabled={isSaving}>
-                {isSaving ? 'Lagrer...' : isExisting ? 'Lagre endringer' : 'Opprett objekt'}
+              <button type="submit" className="admin-save-btn" disabled={isSaving || isUploading}>
+                {isSaving ? 'Lagrer...' : isUploading ? 'Venter på bilder...' : isExisting ? 'Lagre endringer' : 'Opprett objekt'}
               </button>
             </form>
           </div>

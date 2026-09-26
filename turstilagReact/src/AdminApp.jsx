@@ -10,7 +10,7 @@ import { UserLocationMarker } from './components/UserLocation'
 import { useGeolocation } from './hooks/useGeolocation'
 import { useFullscreen } from './hooks/useFullscreen'
 import AdminSidebar from './components/AdminSidebar'
-import AdminDrawTools from './components/AdminDrawTools'
+import AdminDrawTools, { AdminToolbar } from './components/AdminDrawTools'
 import { useAdminController } from './controllers/useAdminController'
 
 delete L.Icon.Default.prototype._getIconUrl
@@ -22,7 +22,7 @@ L.Icon.Default.mergeOptions({
 
 const BASE_POSITION = [58.7650, 5.8542]
 
-export default function AdminApp() {
+export default function AdminApp({ userEmail, onSignOut }) {
   const appRef = useRef(null)
   const {
     features,
@@ -52,18 +52,33 @@ export default function AdminApp() {
   return (
     <div className="app-layout" ref={appRef}>
       <div style={{ height: '100%', flex: 1, position: 'relative' }}>
-        <div className="admin-banner">
-          <strong>Adminmodus</strong>
-          <span>{adminModeText}</span>
-          <a href="/">Tilbake til kart</a>
-        </div>
-
-        {sidebarOpen && isCollapsed && (
-          <div className="sidebar-floating-buttons">
-            <button className="sidebar-float-btn" onClick={handleCloseSidebar} title="Lukk">✕</button>
-            <button className="sidebar-float-btn" onClick={handleCollapseSidebar} title="Åpne">▶</button>
+        <div className="admin-overlay">
+          <div className="admin-banner">
+            <div className="admin-banner-row">
+              <strong>Adminmodus</strong>
+              <a href="/">Tilbake til kart</a>
+              <span className="admin-user">{userEmail}</span>
+              <button className="admin-secondary-btn" onClick={onSignOut}>Logg ut</button>
+            </div>
+            <span>{adminModeText}</span>
           </div>
-        )}
+
+          <AdminToolbar
+            mode={drawMode}
+            draftPoint={draftPoint}
+            draftLine={draftLine}
+            onSelectMode={handleSelectMode}
+            onClearDraft={clearDraft}
+            onFinishLine={handleFinishLine}
+          />
+
+          {sidebarOpen && isCollapsed && (
+            <div className="sidebar-floating-buttons">
+              <button className="sidebar-float-btn" onClick={handleCloseSidebar} title="Lukk">✕</button>
+              <button className="sidebar-float-btn" onClick={handleCollapseSidebar} title="Åpne">▶</button>
+            </div>
+          )}
+        </div>
 
         <MapContainer center={BASE_POSITION} zoom={14} zoomControl={false} style={{ height: '100%', width: '100%' }}>
           <LayersControl position="topright">
@@ -73,15 +88,7 @@ export default function AdminApp() {
           <ZoomControl position="bottomright" />
           <MapButtons onLocate={requestLocation} onFullscreen={toggleFullscreen} isFullscreen={isFullscreen} />
 
-          <AdminDrawTools
-            mode={drawMode}
-            draftPoint={draftPoint}
-            draftLine={draftLine}
-            onMapClick={handleMapClick}
-            onSelectMode={handleSelectMode}
-            onClearDraft={clearDraft}
-            onFinishLine={handleFinishLine}
-          />
+          <AdminDrawTools draftPoint={draftPoint} draftLine={draftLine} onMapClick={handleMapClick} />
 
           {userLocation && <UserLocationMarker position={userLocation} />}
           <MapLayers
