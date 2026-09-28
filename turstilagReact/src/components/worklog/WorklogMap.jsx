@@ -48,10 +48,22 @@ const entryHtml = (type, size, selected, draft) => {
     </div>`
 }
 
+const ownerLabelHtml = (name, color, hi, faded) => (hi
+  ? `<div class="wl-owner-pin hi"><span class="wl-owner-swatch hi" style="background:${color}"></span>${escapeHtml(name)}</div>`
+  : `<div class="wl-owner-pin" style="opacity:${faded ? 0.7 : 1}"><span class="wl-owner-swatch" style="background:${color}"></span>${escapeHtml(name)}</div>`)
+
+const vertexHtml = (i) => `<div class="wl-vertex-pin">${i + 1}</div>`
+const midpointHtml = () => '<div class="wl-midpoint-pin"></div>'
+
 const areaIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: [0, 0] })
 const entryIcon = (html, size) => L.divIcon({ className: 'wl-divicon', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
+const vertexIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: [22, 22], iconAnchor: [11, 11] })
+const midpointIcon = () => L.divIcon({ className: 'wl-divicon', html: midpointHtml(), iconSize: [14, 14], iconAnchor: [7, 7] })
 
-function Markers({ areas, entries, areaId, entryId, filter, edit, placing, onAreaClick, onEntryClick, onPlace, onDraftMove }) {
+function Markers({
+  areas, entries, parcels, owners, layers, areaId, entryId, ownerId, filter, edit, placing,
+  onAreaClick, onEntryClick, onOwnerClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex,
+}) {
   const map = useMap()
   const groupRef = useRef(null)
 
@@ -89,15 +101,44 @@ function Markers({ areas, entries, areaId, entryId, filter, edit, placing, onAre
       }).addTo(group)
     }
 
-    areas.forEach((area) => {
-      if (area.id === areaId) return
-      if (edit?.kind === 'area' && edit.id === area.id) return
-      const count = entries.filter((e) => e.area === area.id).length
-      const small = Boolean(areaId) || edit?.kind === 'entry'
-      const marker = L.marker(area.ll, { icon: areaIcon(areaHtml(area.name, count, small, Boolean(edit))), zIndexOffset: 1000, interactive })
-      if (interactive) marker.on('click', () => onAreaClick(area.id))
-      marker.addTo(group)
-    })
+    if (layers.owners) {
+      const editingParcelId = edit?.kind === 'parcel' ? edit.id : null
+      parcels.forEach((parcel) => {
+        if (parcel.id === editingParcelId) return
+        const owner = owners.find((o) => o.id === parcel.ownerId)
+        if (!owner || !parcel.latLngRings.length) return
+        const hi = ownerId === owner.id
+        const faded = (ownerId && !hi) || Boolean(edit)
+        const poly = L.polygon(parcel.latLngRings, {
+          color: owner.color,
+          weight: hi ? 3 : 2,
+          opacity: faded ? 0.55 : 0.95,
+          fillColor: owner.color,
+          fillOpacity: hi ? 0.3 : faded ? 0.08 : 0.18,
+          interactive,
+        })
+        if (interactive) poly.on('click', () => onOwnerClick(owner.id))
+        poly.addTo(group)
+
+        if (parcel.center) {
+          const marker = L.marker(parcel.center, { icon: areaIcon(ownerLabelHtml(owner.name, owner.color, hi, faded)), zIndexOffset: hi ? 1500 : 800, interactive })
+          if (interactive) marker.on('click', () => onOwnerClick(owner.id))
+          marker.addTo(group)
+        }
+      })
+    }
+
+    if (layers.work) {
+      areas.forEach((area) => {
+        if (area.id === areaId) return
+        if (edit?.kind === 'area' && edit.id === area.id) return
+        const count = entries.filter((e) => e.area === area.id).length
+        const small = Boolean(areaId) || edit?.kind === 'entry'
+        const marker = L.marker(area.ll, { icon: areaIcon(areaHtml(area.name, count, small, Boolean(edit))), zIndexOffset: 1000, interactive })
+        if (interactive) marker.on('click', () => onAreaClick(area.id))
+        marker.addTo(group)
+      })
+    }
 
     if (edit?.kind === 'area' && draft.ll) {
       const marker = L.marker(draft.ll, { icon: areaIcon(draftAreaHtml(draft.name)), draggable: true, zIndexOffset: 3000 })
@@ -105,25 +146,56 @@ function Markers({ areas, entries, areaId, entryId, filter, edit, placing, onAre
       marker.addTo(group)
     }
 
-    const shownArea = edit?.kind === 'entry' ? draft.area : areaId
-    entries.forEach((entry) => {
-      if (!shownArea || entry.area !== shownArea) return
-      if (!edit && filter && entry.type !== filter) return
-      if (edit?.kind === 'entry' && edit.id === entry.key) return
-      const selected = !edit && entryId === entry.key
-      const size = selected ? 36 : 28
-      const html = `<div style="opacity:${edit ? 0.55 : 1}">${entryHtml(entry.type, size, selected)}</div>`
-      const marker = L.marker(entry.ll, { icon: entryIcon(html, size), zIndexOffset: selected ? 2000 : 500, interactive })
-      if (interactive) marker.on('click', () => onEntryClick(entry.key))
-      marker.addTo(group)
-    })
+    if (layers.work) {
+      const shownArea = edit?.kind === 'entry' ? draft.area : areaId
+      entries.forEach((entry) => {
+        if (!shownArea || entry.area !== shownArea) return
+        if (!edit && filter && entry.type !== filter) return
+        if (edit?.kind === 'entry' && edit.id === entry.key) return
+        const selected = !edit && entryId === entry.key
+        const size = selected ? 36 : 28
+        const html = `<div style="opacity:${edit ? 0.55 : 1}">${entryHtml(entry.type, size, selected)}</div>`
+        const marker = L.marker(entry.ll, { icon: entryIcon(html, size), zIndexOffset: selected ? 2000 : 500, interactive })
+        if (interactive) marker.on('click', () => onEntryClick(entry.key))
+        marker.addTo(group)
+      })
+    }
 
     if (edit?.kind === 'entry' && draft.ll) {
       const marker = L.marker(draft.ll, { icon: entryIcon(entryHtml(draft.type, 38, true, true), 38), draggable: true, zIndexOffset: 3000 })
       onDragEnd(marker)
       marker.addTo(group)
     }
-  }, [areas, entries, areaId, entryId, filter, edit, onAreaClick, onEntryClick, onDraftMove])
+
+    if (edit?.kind === 'parcel') {
+      const points = draft.points || []
+      if (points.length >= 2) {
+        L.polygon(points, { color: '#1b2620', weight: 2, dashArray: '5 5', fillColor: '#1b2620', fillOpacity: 0.12, interactive: false }).addTo(group)
+      }
+      points.forEach((point, i) => {
+        const marker = L.marker(point, { icon: vertexIcon(vertexHtml(i)), draggable: true, zIndexOffset: 3000 })
+        marker.on('dragend', () => {
+          const p = marker.getLatLng()
+          onDraftVertexMove(i, [round(p.lat), round(p.lng)])
+        })
+        marker.addTo(group)
+      })
+      // Once the outline is closed, a handle on each edge lets you drag it outward to grow
+      // the shape — dropping it inserts a new corner there, same as dragging a placed one.
+      if (!placing && points.length >= 3) {
+        points.forEach((point, i) => {
+          const next = points[(i + 1) % points.length]
+          const mid = [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2]
+          const marker = L.marker(mid, { icon: midpointIcon(), draggable: true, zIndexOffset: 2800 })
+          marker.on('dragend', () => {
+            const p = marker.getLatLng()
+            onInsertVertex(i + 1, [round(p.lat), round(p.lng)])
+          })
+          marker.addTo(group)
+        })
+      }
+    }
+  }, [areas, entries, parcels, owners, layers, areaId, entryId, ownerId, filter, edit, placing, onAreaClick, onEntryClick, onOwnerClick, onDraftMove, onDraftVertexMove, onInsertVertex])
 
   return null
 }
@@ -154,21 +226,43 @@ function Viewport({ view, isMobile }) {
   return null
 }
 
-export default function WorklogMap({ areas, entries, areaId, entryId, filter, edit, placing, version, isMobile, onAreaClick, onEntryClick, onPlace, onDraftMove, children }) {
+export default function WorklogMap({
+  areas, entries, parcels = [], owners = [], layers = { work: true, owners: true, routes: false },
+  areaId, entryId, ownerId, filter, edit, placing, version, isMobile,
+  onAreaClick, onEntryClick, onOwnerClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, children,
+}) {
   const view = useMemo(() => {
     if (edit) {
+      if (edit.kind === 'parcel') {
+        // Move the map once, before any corners are placed, to get the admin looking at
+        // roughly the right spot — then leave it alone. Re-fitting on every click would fight
+        // the admin's own panning/zooming while they place points.
+        if ((edit.draft.points || []).length === 0 && edit.initialLL) {
+          return { key: `edit:parcel:${edit.id ?? 'new'}:${edit.startedAt}:start`, fly: edit.initialLL, zoom: 15 }
+        }
+        return { key: `edit:parcel:${edit.id ?? 'new'}:${edit.startedAt}:drawing` }
+      }
       const ll = edit.initialLL
       return { key: `edit:${edit.kind}:${edit.id ?? 'new'}:${edit.startedAt}`, fly: ll, zoom: edit.kind === 'area' ? 14 : 16 }
     }
     const entry = entryId && entries.find((e) => e.key === entryId)
     if (entry) return { key: `entry:${entryId}`, fly: entry.ll, zoom: 16 }
 
+    const owner = ownerId && owners.find((o) => o.id === ownerId)
+    if (owner) {
+      const fit = parcels.filter((p) => p.ownerId === owner.id).flatMap((p) => p.latLngRings.flat())
+      return { key: `owner:${ownerId}`, fit }
+    }
+
     const area = areaId && areas.find((a) => a.id === areaId)
     const fit = area
       ? [area.ll, ...entries.filter((e) => e.area === area.id).map((e) => e.ll)]
-      : areas.map((a) => a.ll)
-    return { key: `fit:${areaId ?? 'all'}:${version}`, fit }
-  }, [edit, entryId, entries, areaId, areas, version])
+      : [
+        ...(layers.work ? areas.map((a) => a.ll) : []),
+        ...(layers.owners ? parcels.flatMap((p) => p.latLngRings.flat()) : []),
+      ]
+    return { key: `fit:${areaId ?? 'all'}:${version}:${layers.work}:${layers.owners}`, fit }
+  }, [edit, entryId, entries, areaId, areas, ownerId, owners, parcels, layers, version])
 
   const [map, setMap] = useState(null)
   const [baseLayer, setBaseLayer] = useState(readLayer)
@@ -191,15 +285,22 @@ export default function WorklogMap({ areas, entries, areaId, entryId, filter, ed
         <Markers
           areas={areas}
           entries={entries}
+          parcels={parcels}
+          owners={owners}
+          layers={layers}
           areaId={areaId}
           entryId={entryId}
+          ownerId={ownerId}
           filter={filter}
           edit={edit}
           placing={placing}
           onAreaClick={onAreaClick}
           onEntryClick={onEntryClick}
+          onOwnerClick={onOwnerClick}
           onPlace={onPlace}
           onDraftMove={onDraftMove}
+          onDraftVertexMove={onDraftVertexMove}
+          onInsertVertex={onInsertVertex}
         />
         <Viewport view={view} isMobile={isMobile} />
         {userLocation && <UserLocationMarker position={userLocation} />}
