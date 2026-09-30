@@ -8,6 +8,7 @@ import { useWorklog } from './hooks/useWorklog'
 import { useOwners } from './hooks/useOwners'
 import { useRoutes } from './hooks/useRoutes'
 import { useIsMobile } from './hooks/useIsMobile'
+import { useSheetDrag } from './hooks/useSheetDrag'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
 import { useGeolocation } from './hooks/useGeolocation'
 import { buildAreaViews } from './models/worklog'
@@ -18,6 +19,7 @@ import WorklogMap from './components/worklog/WorklogMap'
 import MapLegend from './components/worklog/MapLegend'
 import MapLayerChips from './components/worklog/MapLayerChips'
 import MapAreaFilter from './components/worklog/MapAreaFilter'
+import MapFilterMenu from './components/worklog/MapFilterMenu'
 import AreaList from './components/worklog/AreaList'
 import AreaDetail from './components/worklog/AreaDetail'
 import OwnerDetail from './components/worklog/OwnerDetail'
@@ -72,7 +74,11 @@ function App() {
   const [infoAreas, setInfoAreas] = useState([])
   const [difficulty, setDifficulty] = useState(null)
   const [noDataDismissed, setNoDataDismissed] = useState(false)
+  // Mobile only: fold the bottom panel away so the map fills the screen. Remembers the selection
+  // it was folded on, so picking something else on the map opens the panel again.
+  const [collapsedAt, setCollapsedAt] = useState(null)
   const scrollRef = useRef(null)
+  const bodyRef = useRef(null)
 
   const { mode } = nav
   const layers = layersByMode[mode]
@@ -164,6 +170,14 @@ function App() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [areaId, ownerId, mode, nav.point, nav.route])
+
+  const selectionKey = [mode, areaId, ownerId, entryId, nav.point, nav.route].join('|')
+  const panelCollapsed = collapsedAt === selectionKey
+  const { mapH: sheetMapH, handleProps: sheetHandleProps } = useSheetDrag({
+    bodyRef,
+    collapsed: panelCollapsed,
+    setCollapsed: (fold) => setCollapsedAt(fold ? selectionKey : null),
+  })
 
   const renderAside = () => {
     if (owner) {
@@ -259,14 +273,6 @@ function App() {
     )
   }
 
-  // The point the status pill names: the area the visitor is standing in (nearest area pin)
-  const hereArea = geo.userLocation && areas.length
-    ? areas.reduce((best, a) => {
-      const d = (a.ll[0] - geo.userLocation[0]) ** 2 + (a.ll[1] - geo.userLocation[1]) ** 2
-      return !best || d < best.d ? { a, d } : best
-    }, null).a
-    : null
-
   return (
     <div className={`wl-app wl-mode-${mode}`}>
       <SiteHeader modes={MODES} mode={worklogMode ? null : mode} onMode={changeMode}>
@@ -275,10 +281,26 @@ function App() {
           : !isMobile && <a href="?modus=arbeidslogg" className="wl-header-link" onClick={(event) => { event.preventDefault(); changeMode('arbeidslogg') }}>Arbeidslogg</a>}
       </SiteHeader>
 
-      <div className="wl-body">
+      <div
+        ref={bodyRef}
+        className={`wl-body ${isMobile && panelCollapsed ? 'panel-collapsed' : ''} ${isMobile && sheetMapH !== null ? 'sheet-sized' : ''}`}
+        style={sheetMapH !== null ? { '--map-h': `${sheetMapH}px` } : undefined}
+      >
         <aside className="wl-aside" style={{ '--aside-w': `${sidebarWidth}px` }}>
           {!isMobile && (
             <div className={`wl-resize-handle ${resizing ? 'active' : ''}`} onMouseDown={startResize} onTouchStart={startResize} />
+          )}
+          {isMobile && (
+            <div
+              role="button"
+              tabIndex={0}
+              className="wl-sheet-handle"
+              aria-expanded={!panelCollapsed}
+              aria-label={panelCollapsed ? 'Vis panel' : 'Skjul panel'}
+              {...sheetHandleProps}
+            >
+              <span className="wl-sheet-grip" />
+            </div>
           )}
           <div className="wl-scroll" ref={scrollRef}>
             {renderAside()}
@@ -307,14 +329,29 @@ function App() {
           onOwnerClick={selectOwner}
           onRouteClick={selectRoute}
         >
-          <div className="wl-map-overlay-left">
-            {isMobile && mode === 'finnes' && hereArea && (
-              <span className="wl-status-pill"><span className="wl-status-dot" /><span className="wl-mono">{hereArea.name}</span></span>
-            )}
-            <MapLegend isMobile={isMobile} usedTypes={usedTypes} layers={layers} hasOwners={owners.length > 0} mode={mode} />
-          </div>
-          <MapLayerChips layers={layers} usedTypes={usedTypes} onToggle={toggleLayer} onToggleKind={toggleKind} keys={LAYER_KEYS[mode]} />
-          {mode === 'finnes' && <MapAreaFilter areas={areas} value={infoAreas} onChange={setInfoAreas} />}
+          {isMobile ? (
+            <MapFilterMenu
+              areas={areas}
+              areaValue={infoAreas}
+              onAreaChange={setInfoAreas}
+              showAreas={mode === 'finnes'}
+              layers={layers}
+              usedTypes={usedTypes}
+              onToggle={toggleLayer}
+              onToggleKind={toggleKind}
+              keys={LAYER_KEYS[mode]}
+              hasOwners={owners.length > 0}
+              mode={mode}
+            />
+          ) : (
+            <>
+              <div className="wl-map-overlay-left">
+                <MapLegend isMobile={isMobile} usedTypes={usedTypes} layers={layers} hasOwners={owners.length > 0} mode={mode} />
+              </div>
+              <MapLayerChips layers={layers} usedTypes={usedTypes} onToggle={toggleLayer} onToggleKind={toggleKind} keys={LAYER_KEYS[mode]} />
+              {mode === 'finnes' && <MapAreaFilter areas={areas} value={infoAreas} onChange={setInfoAreas} />}
+            </>
+          )}
         </WorklogMap>
       </div>
 
