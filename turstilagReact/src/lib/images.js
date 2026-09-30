@@ -74,3 +74,15 @@ export const deleteImages = async (values) => {
   const { error } = await supabase.storage.from(BUCKET).remove(paths)
   if (error) throw error
 }
+
+// Stored copies of `values`, so a duplicated entry owns its images and deleting one entry's
+// images can't break the other's. Old /public and URL images are never deleted, so they're shared.
+export const copyImages = (values) => Promise.all(values.map(async (value) => {
+  if (!isStoragePath(value)) return value
+  const folder = value.includes('/') ? value.slice(0, value.lastIndexOf('/')) : ''
+  const ext = value.includes('.') ? value.slice(value.lastIndexOf('.')) : ''
+  const path = `${folder ? `${folder}/` : ''}${crypto.randomUUID()}${ext}`
+  const { error } = await supabase.storage.from(BUCKET).copy(value, path)
+  if (error) throw error
+  return path
+}))

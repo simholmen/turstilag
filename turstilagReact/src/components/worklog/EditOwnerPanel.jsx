@@ -1,4 +1,5 @@
 import { OWNER_COLORS, missingOwnerFields, missingParcelFields } from '../../models/owners'
+import GeometryDrawField from './GeometryDrawField'
 
 // Scrollable form body for a new or existing owner/parcel. Mirrors EditPanel's EditForm.
 export function OwnerEditForm({ edit, areas, owners, placing, tried, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw }) {
@@ -34,23 +35,16 @@ export function OwnerEditForm({ edit, areas, owners, placing, tried, onCancel, o
               <input className="wl-input" type="number" min="1" value={draft.teig} onChange={set('teig')} />
             </label>
 
-            <div className="wl-field">
-              <span className="wl-label">Eiendomsgrense *</span>
-              <div className={`wl-place-row ${tried && draft.points.length < 3 ? 'invalid' : ''}`}>
-                <span className="wl-place-text">
-                  {draft.points.length === 0 ? 'Ikke tegnet' : `${draft.points.length} punkter`}
-                </span>
-                {placing && draft.points.length > 0 && (
-                  <button type="button" className="wl-btn small" onClick={onUndoPoint}>Angre siste</button>
-                )}
-                {placing ? (
-                  <button type="button" className="wl-btn small primary" disabled={draft.points.length < 3} onClick={onFinishDraw}>Fullfør</button>
-                ) : (
-                  <button type="button" className="wl-btn small" onClick={onStartDraw}>{draft.points.length ? 'Tegn på nytt' : 'Tegn i kartet'}</button>
-                )}
-              </div>
-              <span className="wl-hint">Klikk i kartet for å legge til hjørner. Dra et punkt for å justere det, eller dra det lille håndtaket midt på en kant for å utvide der.</span>
-            </div>
+            <GeometryDrawField
+              geomType="poly"
+              points={draft.points}
+              placing={placing}
+              label="Eiendomsgrense *"
+              tried={tried}
+              onStartDraw={onStartDraw}
+              onUndoPoint={onUndoPoint}
+              onFinishDraw={onFinishDraw}
+            />
           </>
         ) : (
           <>
@@ -111,6 +105,11 @@ export function OwnerEditForm({ edit, areas, owners, placing, tried, onCancel, o
             <label className="wl-field">
               <span className="wl-label">E-post</span>
               <input className="wl-input" type="email" value={draft.email} onChange={set('email')} />
+            </label>
+
+            <label className="wl-field">
+              <span className="wl-label">Dyr på beite</span>
+              <input className="wl-input" value={draft.dyr} onChange={set('dyr')} placeholder="F.eks. Sau · mai–sep" />
             </label>
 
             <label className="wl-field">
