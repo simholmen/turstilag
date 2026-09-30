@@ -1,17 +1,8 @@
 import { useState } from 'react'
-import hammerIcon from 'lucide-static/icons/hammer.svg?raw'
-import routeIcon from 'lucide-static/icons/route.svg?raw'
 import { TYPES } from '../../models/worklog'
-import { OWNER_ICON } from '../../models/owners'
+import { LAYERS } from './layerOptions'
 
-const svg = (raw) => raw.slice(raw.indexOf('<svg'))
-const Icon = ({ html }) => <span className="wl-ico" dangerouslySetInnerHTML={{ __html: html }} />
-
-const LAYERS = [
-  { key: 'work', label: 'Arbeid', icon: svg(hammerIcon) },
-  { key: 'owners', label: 'Grunneiere', icon: OWNER_ICON },
-  { key: 'routes', label: 'Ruter', icon: svg(routeIcon) },
-]
+export const Icon = ({ html }) => <span className="wl-ico" dangerouslySetInnerHTML={{ __html: html }} />
 
 // Toggle pills in the map's top-right corner, controlling what is drawn. `keys` limits which are
 // offered; 'kinds' expands to one pill per point kind (Annet only once something uses it), and

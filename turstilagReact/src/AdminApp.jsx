@@ -23,6 +23,7 @@ import WorklogMap from './components/worklog/WorklogMap'
 import MapLegend from './components/worklog/MapLegend'
 import MapLayerChips from './components/worklog/MapLayerChips'
 import MapAreaFilter from './components/worklog/MapAreaFilter'
+import MapFilterMenu from './components/worklog/MapFilterMenu'
 import AreaList from './components/worklog/AreaList'
 import AreaDetail from './components/worklog/AreaDetail'
 import OwnerDetail from './components/worklog/OwnerDetail'
@@ -620,14 +621,6 @@ export default function AdminApp({ userEmail, onSignOut }) {
     )
   }
 
-  // The point the status pill names: the area the admin is standing in (nearest area pin)
-  const hereArea = geo.userLocation && areas.length
-    ? areas.reduce((best, a) => {
-      const d = (a.ll[0] - geo.userLocation[0]) ** 2 + (a.ll[1] - geo.userLocation[1]) ** 2
-      return !best || d < best.d ? { a, d } : best
-    }, null).a
-    : null
-
   return (
     <div className={`wl-app wl-mode-${mode}`}>
       <SiteHeader badge="Adminmodus" modes={MODES} mode={worklogMode ? null : mode} onMode={changeMode}>
@@ -720,14 +713,29 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onInsertVertex={handleInsertVertex}
           onCloseShape={handleCloseShape}
         >
-          <div className="wl-map-overlay-left">
-            {isMobile && mode === 'finnes' && hereArea && (
-              <span className="wl-status-pill"><span className="wl-status-dot" /><span className="wl-mono">{hereArea.name}</span></span>
-            )}
-            <MapLegend isMobile={isMobile} usedTypes={usedTypes} layers={layers} hasOwners={owners.length > 0} mode={mode} />
-          </div>
-          <MapLayerChips layers={layers} usedTypes={usedTypes} onToggle={toggleLayer} onToggleKind={toggleKind} keys={LAYER_KEYS[mode]} />
-          {mode === 'finnes' && !edit && <MapAreaFilter areas={areas} value={infoAreas} onChange={setInfoAreas} />}
+          {isMobile ? (
+            <MapFilterMenu
+              areas={areas}
+              areaValue={infoAreas}
+              onAreaChange={setInfoAreas}
+              showAreas={mode === 'finnes' && !edit}
+              layers={layers}
+              usedTypes={usedTypes}
+              onToggle={toggleLayer}
+              onToggleKind={toggleKind}
+              keys={LAYER_KEYS[mode]}
+              hasOwners={owners.length > 0}
+              mode={mode}
+            />
+          ) : (
+            <>
+              <div className="wl-map-overlay-left">
+                <MapLegend isMobile={isMobile} usedTypes={usedTypes} layers={layers} hasOwners={owners.length > 0} mode={mode} />
+              </div>
+              <MapLayerChips layers={layers} usedTypes={usedTypes} onToggle={toggleLayer} onToggleKind={toggleKind} keys={LAYER_KEYS[mode]} />
+              {mode === 'finnes' && !edit && <MapAreaFilter areas={areas} value={infoAreas} onChange={setInfoAreas} />}
+            </>
+          )}
 
           {!edit && (
             <div className="wl-map-actions">
