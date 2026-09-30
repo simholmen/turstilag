@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase'
 import { byDateDesc } from './worklog'
+import landPlot from 'lucide-static/icons/land-plot.svg?raw'
+
+// The one grunneier symbol, used on the map, in the legend, the list and the layer chip
+export const OWNER_ICON = landPlot.slice(landPlot.indexOf('<svg'))
 
 // Owner colors default to a small rotation so new owners are visually distinct on the map
 export const OWNER_COLORS = ['#2f7f7a', '#a4486e', '#4a5f9e', '#7d8a2e', '#8a5a3c', '#b4532a', '#2c6e8a', '#6a4f8c']
@@ -59,6 +63,7 @@ const rowToOwner = (row, hubIds = []) => ({
   phone: row.phone || '',
   email: row.email || '',
   note: row.note || '',
+  dyr: row.dyr || '',
 })
 
 const rowToParcel = (row) => ({
@@ -138,6 +143,7 @@ export const saveOwner = async (original, draft) => {
     phone: draft.phone.trim() || null,
     email: draft.email.trim() || null,
     note: draft.note.trim() || null,
+    dyr: draft.dyr?.trim() || null,
   }
 
   let id
