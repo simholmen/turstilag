@@ -2696,8 +2696,6 @@ textarea.wl-input {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    margin-right: calc(-1 * var(--pad));
-    padding-right: var(--pad);
   }
 
   /* Filters and Tegnforklaring share one small button at the top-left of the map (MapFilterMenu),
@@ -3092,4 +3090,27 @@ textarea.wl-input {
   width: 18px;
   height: 6px;
   border-radius: 3px;
+}
+
+/* === Map attribution (© Kartverket etc.): quiet in the corner, smaller on mobile === */
+
+.wl-map .leaflet-container .leaflet-control-attribution {
+  padding: 0 5px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border-top-right-radius: 4px;
+}
+
+@media (max-width: 819px) {
+  .wl-map .leaflet-container .leaflet-control-attribution {
+    padding: 0 4px;
+    font-size: 9px;
+    line-height: 14px;
+  }
+}
+
+.wl-map .leaflet-control-attribution a {
+  color: inherit;
 }
