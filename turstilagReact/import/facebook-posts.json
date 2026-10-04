@@ -1,0 +1,135 @@
+{
+  "_source": "Facebook page Ålgård turstilag (profile.php?id=100067358124876), newest 12 posts, collected 2026-09-26",
+  "_notes": [
+    "date: exact when Facebook exposed it; otherwise dateApprox gives the window between neighbouring posts (the feed is chronological).",
+    "type uses the keys from src/models/worklog.js TYPES.",
+    "area is a place name from the post text, to be matched to a hub by hand. ll (coordinates) is always missing.",
+    "relevant: yes = trail work to import, maybe = partial or infrastructure, no = not a work entry."
+  ],
+  "entries": [
+    {
+      "post": 1,
+      "relevant": "yes",
+      "date": "2026-09-26",
+      "type": "nysti",
+      "title": "800 meter ny sti på Heiå",
+      "area": "Trodalen, Heiå, aust for Eikeland, sørvest for Bursfjellet",
+      "desc": "120 m ny natursteinsti (Årstein Lima, Gjesdal Bygdeservice), 300 m nyopna sti gjennom tett skog, resten nymerka inn til gamle stiar. Gir alternativ sti rundt beitande kyr. Dugnad: Per Einar Lillejordet, Bjørn Ove Modalsli, Nina Svensen, Milrid Aarsland og Arne Kulander. Støtte frå Sparebankstiftelsen SR-Bank.",
+      "images": 5
+    },
+    {
+      "post": 4,
+      "relevant": "yes",
+      "date": "2026-08-24",
+      "type": "gjerdeklyver",
+      "title": "To ombygde gjerdeklyvarar på Vardafjell",
+      "area": "Kodlidalen, Vardafjell, aust for Solås",
+      "desc": "To gamle gjerdeklyvarar bygde om – betre, enklare og sikrare, og no også mulege å bruka for hundar. Arbeid: Finn Helge Lima og Erling Gundersen.",
+      "images": 5,
+      "_note": "Two fence stiles in one post, so probably two entries with separate locations"
+    },
+    {
+      "post": 5,
+      "relevant": "yes",
+      "date": null,
+      "dateApprox": "2026-07-23 .. 2026-08-24",
+      "type": "drenering",
+      "title": "Steinbru (klopp) over Kvernhusbekken i Trodalen",
+      "area": "Trodalen, vest mot Riset",
+      "desc": "Ny steinbru/klopp over Kvernhusbekken, laga med gravemaskin av Eirik P. Håland. I samarbeid med grunneigar for å redusera konflikt med storfe på beite. Støtte frå Sparebankstiftelsen SR-Bank.",
+      "images": 5
+    },
+    {
+      "post": 5,
+      "relevant": "yes",
+      "date": null,
+      "dateApprox": "2026-07-23 .. 2026-08-24",
+      "type": "nysti",
+      "title": "120 m natursteinsti i Trodalen",
+      "area": "Trodalen",
+      "desc": "Om lag 120 m stibygging med naturstein, inkludert tre grøftekryssingar (Årstein Lima, Gjesdal Bygdeservice). Raudmerka heilårsstiar vidare mot Høga Håland/Hålandsskogen, Riset/Eikeland skule, Gunnhildtjørna/Heiå/Bukkatonå/Bursfjellet og Litle Bursfjellet.",
+      "images": 5,
+      "_note": "Same post as the klopp above, split into two entries"
+    },
+    {
+      "post": 8,
+      "relevant": "yes",
+      "date": "2026-07-21",
+      "type": "drenering",
+      "title": "Stiforbetring på Refnes",
+      "area": "Refnes, Fjermestad (Øygardsvatnet), like vest for steinen «Yggaren»",
+      "desc": "Snautt 50 m sti forbetra: drensrøyr, steinsett ytterkant, oppbygging med steinstøv og meir treflis. Steinstøv frå Bjelland, treflis frå Sigmundsen Transport.",
+      "images": 5
+    },
+    {
+      "post": 7,
+      "relevant": "maybe",
+      "date": "2026-07-23",
+      "type": "grus",
+      "title": "Steinstøv på 200 m sti på Refnes (dugnad)",
+      "area": "Refnes, Fjermestad (Øygardsvatnet)",
+      "desc": "Om lag 200 m sti skal få eit lag steinstøv. Open dugnad – spade, trillebåre og rive ligg klar ved haugen. Steinstøv frå Bjelland AS.",
+      "images": 5,
+      "_note": "A call for volunteers, so the work may not have been finished yet"
+    },
+    {
+      "post": 10,
+      "relevant": "yes",
+      "date": null,
+      "dateApprox": "before 2026-07-17",
+      "type": "grus",
+      "title": "Tilrettelegging for hjulgåande hjelpemiddel i Fiskebekkdalen",
+      "area": "Kodlidalen, Fiskebekkdalen (runden rundt Vardafjell)",
+      "desc": "Ny port, røyr lagt ned i bekken og ny turveg bygd opp med stein, singel og steinstøv, tilpassa rullestol og liknande. Arbeid: Paul Moi, Kåre Taksdal og Erling Gundersen. Material frå Obs Bygg Ålgård, singel/steinstøv frå Bjelland AS, gravemaskin frå Årstein Lima (Gjesdal Bygdeservice). Liknande vart gjort i Kodlidalen i vinter.",
+      "images": 5
+    },
+    {
+      "post": 9,
+      "relevant": "maybe",
+      "date": "2026-07-17",
+      "type": "turinfo",
+      "title": "Nytt parkeringsskilt på Auestad",
+      "area": "Skurve, Auestad (start mot Fitjanuten)",
+      "desc": "Nytt skilt ved parkeringsplassen på Auestad. Ikkje lov å parkera ved grustaket forbi kyllinghuset. Skiltmontering: Paul Moi.",
+      "images": 5
+    },
+    {
+      "post": 11,
+      "relevant": "maybe",
+      "date": null,
+      "dateApprox": "before 2026-07-17",
+      "type": "annet",
+      "title": "Ny parkeringsplass på Fjermestad",
+      "area": "Fjermestad / Refnes (Øygardsvatnet)",
+      "desc": "Ny parkeringsplass der rundballane før stod, for turar rundt Refnes og Øygardsvatnet. Open 08–22, Vipps 50 kr. Økonomisk bidrag frå Time kommune, bautastein frå Skurve Maskin AS.",
+      "images": 5
+    },
+    {
+      "post": 12,
+      "relevant": "maybe",
+      "date": null,
+      "dateApprox": "before 2026-07-17",
+      "type": "grus",
+      "title": "Betre P-plass på veg til Sikvalandskula",
+      "area": "Skurve, Sikvalandsvegen, ca. 7 km frå E39",
+      "desc": "Parkeringsplassen oppgradert med eit par tonn steinstøv i overgangen mot asfaltvegen. Arbeid: Kåre Taksdal. Massar frå Bjelland AS.",
+      "images": 5
+    },
+    {
+      "post": 6,
+      "relevant": "maybe",
+      "date": null,
+      "dateApprox": "2026-07-23 .. 2026-08-24",
+      "type": "annet",
+      "title": "Kvilebenk i Hålandsskogen",
+      "area": "Hålandsskogen, 3 km sørvest for Ålgård",
+      "desc": "Ny kvilebenk på eit utsiktspunkt i Hålandsskogen. Kort runde ca. 500 m (brattare), lang runde ca. 1,2 km.",
+      "images": 5,
+      "_note": "Post is a reminder about a bench installed earlier; the actual installation date is unknown"
+    }
+  ],
+  "skipped": [
+    { "post": 2, "reason": "Event: Gjesdal Backyard running race on 12 Sep" },
+    { "post": 3, "reason": "Recruiting support members" }
+  ]
+}

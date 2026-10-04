@@ -1,0 +1,87 @@
+[
+  {
+    "post": 28,
+    "hub": 11,
+    "table": "other_points",
+    "type": "rydding",
+    "date": "2026-03-23",
+    "title": "Rydding av stien over Bruhammaren",
+    "desc": "Turstien opp, gjennom og over Bruhammaren er rydda for store eiketre som blåste ned i vinter – fleire tonn låg velta over stien. Arbeid: Paul Helge Svela og Svein Ole Håland.",
+    "photos": [
+      "fb2-g15-01.jpg",
+      "fb2-g15-02.jpg",
+      "fb2-g15-03.jpg",
+      "fb2-g15-04.jpg",
+      "fb2-g15-05.jpg",
+      "fb2-g15-06.jpg",
+      "fb2-g15-07.jpg",
+      "fb2-g15-08.jpg",
+      "fb2-g15-12.jpg",
+      "fb2-g15-13.jpg",
+      "fb2-g15-14.jpg",
+      "fb2-g15-15.jpg"
+    ]
+  },
+  {
+    "post": 29,
+    "hub": 11,
+    "table": "other_points",
+    "type": "turinfo",
+    "date": "2026-03-13",
+    "title": "Bautasteinar med skiltkart rundt Ålgård",
+    "desc": "12 bautasteinar frå Skurve Maskin er sett opp rundt Ålgård, 11 med skiltkart: seks ved inngangane til Limaheia, to på Indre Lima (mot Eikefjellet, Streide og speiderhytta), ein på Auestad (Fitjanuten), to ved Edlandsfjellet/Bursfjellet (Neseskogen og Eikeland), og ein på Fjermestad (førebels utan skilt).",
+    "photos": [
+      "fb2-g16-01.jpg",
+      "fb2-g16-02.jpg",
+      "fb2-g16-03.jpg",
+      "fb2-g16-04.jpg",
+      "fb2-g16-05.jpg",
+      "fb2-g16-07.jpg",
+      "fb2-g16-08.jpg",
+      "fb2-g16-09.jpg",
+      "fb2-g16-10.jpg",
+      "fb2-g16-11.jpg",
+      "fb2-g16-12.jpg"
+    ]
+  },
+  {
+    "post": 30,
+    "hub": 7,
+    "table": "other_points",
+    "type": "turinfo",
+    "date": "2026-03-07",
+    "title": "Nytt skiltkart for Edlandsfjellet og Bursfjellet",
+    "desc": "Nytt skiltkart med det meste av stiane i området Edlandsfjellet, Bursfjellet og Trodalen, sett opp på bautasteinar ved parkeringsplassen i Neseskogen og på Eikeland (i krysset aust for den gamle skulen). Skiltmontering: Erling Gundersen og Paul Moi. Bautasteinar frå Skurve Maskin AS. Støtte frå Sparebankstiftelsen SR-Bank, samarbeid med Time kommune og Jæren Friluftsråd.",
+    "photos": [
+      "fb2-g17-01.jpg",
+      "fb2-g17-02.jpg",
+      "fb2-g17-03.jpg",
+      "fb2-g17-04.jpg",
+      "fb2-g17-05.jpg",
+      "fb2-g17-06.jpg",
+      "fb2-g17-07.jpg",
+      "fb2-g17-08.jpg"
+    ]
+  },
+  {
+    "post": 34,
+    "hub": 8,
+    "table": "other_points",
+    "type": "merking",
+    "date": "2026-01-15",
+    "title": "Merka rundtur til Fitjanuten",
+    "desc": "Merka rundtur til Fitjanuten (476 moh.) med start og parkering på Auestad. Raud, vestleg rute er meir krevjande enn den blå på austsida. Skiltkart på bautastein frå Skurve Maskin. Dugnad: Erling Gundersen, Paul Moi, Kåre Taksdal, Terje Lima og Per Einar Lillejordet. Støtte frå EWZ / Norsk Vind.",
+    "photos": [
+      "fb2-g21-01.jpg",
+      "fb2-g21-02.jpg",
+      "fb2-g21-03.jpg",
+      "fb2-g21-04.jpg",
+      "fb2-g21-05.jpg",
+      "fb2-g21-06.jpg",
+      "fb2-g21-07.jpg",
+      "fb2-g21-08.jpg",
+      "fb2-g21-09.jpg",
+      "fb2-g21-10.jpg"
+    ]
+  }
+]
