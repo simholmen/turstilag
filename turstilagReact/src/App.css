@@ -16,14 +16,12 @@
   --sans: 'Archivo', system-ui, sans-serif;
   --pad: 24px;
   --chip-h: 32px;
-  --hero-h: 200px;
 }
 
 @media (max-width: 819px) {
   :root {
     --pad: 16px;
     --chip-h: 40px;
-    --hero-h: 170px;
   }
 }
 
@@ -134,13 +132,46 @@ textarea {
 }
 
 .wl-aside {
-  flex: 0 0 440px;
-  width: 440px;
+  --aside-w: 440px;
+  flex: 0 0 var(--aside-w);
+  width: var(--aside-w);
+  position: relative;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--line);
   background: var(--paper);
+}
+
+.wl-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 50;
+  touch-action: none;
+}
+
+.wl-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.wl-resize-handle:hover::after,
+.wl-resize-handle.active::after {
+  background: var(--green);
+}
+
+.wl-sheet-handle {
+  display: none;
 }
 
 .wl-scroll {
@@ -155,6 +186,9 @@ textarea {
   position: relative;
   min-width: 0;
   min-height: 0;
+  /* Overlay placement follows the map's own width (see "Narrow maps"), since the sidebar can
+     leave a narrow map on a wide screen */
+  container: wl-map / inline-size;
 }
 
 .wl-map-canvas {
@@ -175,9 +209,78 @@ textarea {
     border-top: 1px solid var(--line);
   }
 
+  .wl-resize-handle {
+    display: none;
+  }
+
   .wl-map {
     flex: 0 0 42%;
     order: 1;
+  }
+
+  /* Bottom-sheet grab handle: a short grey bar on the panel's top edge. Drag it down to fold the
+     panel away, up to bring it back, or tap it (see useSheetDrag) */
+  .wl-sheet-handle {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
+    background: var(--paper);
+    touch-action: none;
+    cursor: grab;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wl-sheet-handle:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: -2px;
+  }
+
+  .wl-sheet-grip {
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(27, 38, 32, 0.25);
+  }
+
+  .wl-body.panel-collapsed .wl-sheet-handle {
+    height: calc(22px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* The height the handle was last dragged to; capped so a rotated or shrunk screen keeps the handle */
+  .wl-body.sheet-sized .wl-map {
+    flex: 0 0 min(var(--map-h), calc(100% - 22px));
+  }
+
+  .wl-body.panel-collapsed .wl-map {
+    flex: 1 1 0;
+  }
+
+  .wl-body.panel-collapsed .wl-aside {
+    flex: 0 0 auto;
+  }
+
+  .wl-body.panel-collapsed .wl-scroll {
+    display: none;
+  }
+
+  /* While dragging, the map follows the finger (after the collapsed rules so it wins) */
+  .wl-body[data-dragging] .wl-map {
+    flex: 0 0 var(--drag-map-h);
+  }
+
+  .wl-body[data-dragging] .wl-aside {
+    flex: 1 1 0;
+  }
+
+  .wl-body[data-dragging] .wl-scroll {
+    display: block;
+  }
+
+  .wl-body[data-dragging] .wl-sheet-handle {
+    cursor: grabbing;
   }
 }
 
@@ -521,7 +624,9 @@ textarea {
 
 .wl-hero {
   position: relative;
-  height: var(--hero-h);
+  /* Matches HERO_ASPECT in lib/images.js, so the box keeps the crop's proportions as the
+     resizable sidebar changes width instead of holding a fixed height. */
+  aspect-ratio: 5 / 3;
   margin: 0 var(--pad);
   border-radius: 6px;
   overflow: hidden;
@@ -601,6 +706,71 @@ textarea {
   color: var(--ink-2);
   text-wrap: pretty;
   white-space: pre-line;
+}
+
+/* ---------- Owner (grunneier) detail ---------- */
+
+
+
+
+.wl-stats-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+
+.wl-owner-swatch-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font: 700 22px var(--sans);
+  color: var(--ink);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+.wl-parcel-list {
+  margin-bottom: 8px;
+}
+
+.wl-parcel-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.wl-parcel-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-parcel-main:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.wl-parcel-main:disabled {
+  cursor: default;
 }
 
 .wl-entry-list {
@@ -689,7 +859,7 @@ textarea {
 
 .wl-entry-images img {
   width: 100%;
-  height: 120px;
+  aspect-ratio: 1;
   object-fit: cover;
   border-radius: 4px;
   display: block;
@@ -698,10 +868,6 @@ textarea {
 @media (max-width: 819px) {
   .wl-entry-detail {
     padding-left: 8px;
-  }
-
-  .wl-entry-images img {
-    height: 130px;
   }
 }
 
@@ -783,11 +949,100 @@ textarea {
   cursor: grab;
 }
 
+.wl-owner-pin {
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 2px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  border-radius: 999px;
+  font: 700 11px var(--sans);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.wl-owner-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+}
+
+.wl-owner-swatch .wl-ico {
+  width: 11px;
+  height: 11px;
+  color: #fff;
+}
+
+.wl-owner-pin.hi {
+  padding: 4px 11px 4px 4px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+}
+
+.wl-owner-swatch.hi {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+.wl-owner-swatch.hi .wl-ico {
+  width: 13px;
+  height: 13px;
+}
+
+.wl-vertex-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  display: grid;
+  place-items: center;
+  font: 600 11px var(--mono);
+  box-shadow: 0 0 0 2px #fff, 0 2px 5px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+}
+
+/* Edge handle on a parcel outline being drawn — drag outward to insert a new corner there */
+.wl-midpoint-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  opacity: 0.85;
+}
+
+.wl-midpoint-pin:hover {
+  opacity: 1;
+}
+
 .wl-map-overlay-left {
   position: absolute;
   top: 12px;
+  bottom: 28px;
   left: 12px;
   z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+/* Reaches down to just above the attribution so an open legend scrolls rather than running off
+   a short map; clicks between the pills still reach the map */
+.wl-map-overlay-left > * {
+  pointer-events: auto;
 }
 
 .wl-legend {
@@ -795,6 +1050,7 @@ textarea {
   flex-direction: column;
   gap: 6px;
   align-items: flex-start;
+  min-height: 0;
 }
 
 .wl-legend-toggle,
@@ -814,6 +1070,8 @@ textarea {
 }
 
 .wl-legend-panel {
+  min-height: 0;
+  overflow-y: auto;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -836,9 +1094,130 @@ textarea {
   border-top: 1px solid rgba(27, 38, 32, 0.1);
 }
 
-.wl-map-actions {
+.wl-legend-swatch {
+  flex: none;
+  width: 20px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.wl-layer-chips {
   position: absolute;
   top: 12px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.wl-layer-chips-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.wl-layer-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px var(--sans);
+  padding: 0 14px 0 10px;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.wl-layer-chip .wl-ico {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
+.wl-layer-chip.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* With a pill per kind there are too many for one row: stack them down the right edge */
+.wl-layer-chips.stacked .wl-layer-chips-list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.wl-layer-chips.stacked .wl-layer-chip {
+  min-height: 34px;
+  font-size: 12px;
+  padding: 0 12px 0 5px;
+  white-space: nowrap;
+}
+
+.wl-layer-chips.stacked .wl-layer-chip > .wl-ico {
+  margin-left: 5px;
+}
+
+.wl-layer-kind-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.wl-layer-kind-icon .wl-ico {
+  width: 14px;
+  height: 14px;
+  color: inherit;
+}
+
+.wl-layer-chip.on .wl-layer-kind-icon {
+  color: #fff;
+}
+
+.wl-layer-chips-sep {
+  flex: none;
+  width: 1px;
+  height: 4px;
+}
+
+/* Admin map buttons sit under the layer chips: toggle + one chip row, or just the toggle when collapsed */
+.wl-map:has(.wl-layer-chips-toggle[aria-expanded="false"]) .wl-map-actions {
+  top: 56px;
+}
+
+/* Admin map buttons move to the bottom, next to the zoom controls, out of the chip column */
+.wl-map:has(.wl-layer-chips.stacked) .wl-map-actions {
+  top: auto;
+  bottom: 20px;
+  right: 64px;
+}
+
+.wl-soon-badge {
+  font: 500 10px var(--mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.wl-layer-chip.on .wl-soon-badge {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.wl-map-actions {
+  position: absolute;
+  top: 102px;
   right: 12px;
   z-index: 500;
   display: flex;
@@ -1175,6 +1554,59 @@ textarea.wl-input {
   border-color: var(--ink);
 }
 
+/* Turområder picker on the grunneier form: a stronger filled/checked state than the plain
+   type-grid, since several can be selected at once and each needs to read clearly at a glance. */
+.wl-area-picker-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(27, 38, 32, 0.35);
+  background: #fff;
+  position: relative;
+}
+
+.wl-area-picker .wl-type-option.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.wl-area-picker .wl-type-option.on .wl-area-picker-check {
+  background: var(--paper);
+  border-color: var(--paper);
+}
+
+.wl-area-picker .wl-type-option.on .wl-area-picker-check::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: solid var(--ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.wl-color-input {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid rgba(27, 38, 32, 0.22);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.wl-color-swatch {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
 .wl-place-row {
   display: flex;
   align-items: center;
@@ -1293,8 +1725,7 @@ textarea.wl-input {
 }
 
 .wl-upload-hero {
-  aspect-ratio: auto;
-  height: var(--hero-h);
+  aspect-ratio: 5 / 3;
   border-radius: 6px;
   font-size: 14px;
 }
@@ -1313,7 +1744,7 @@ textarea.wl-input {
 
 .wl-hero-edit-image {
   position: relative;
-  height: var(--hero-h);
+  aspect-ratio: 5 / 3;
   border-radius: 6px;
   overflow: hidden;
   background: var(--stone);
@@ -1565,4 +1996,1121 @@ textarea.wl-input {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* === ModeTabs (Hva finnes | Turruter) === */
+
+.wl-mode-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--stone);
+  min-width: 0;
+}
+
+.wl-mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 14px var(--sans);
+  padding: 0 16px;
+  min-height: 38px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wl-mode-tab .wl-ico {
+  width: 16px;
+  height: 16px;
+}
+
+.wl-mode-tab.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.wl-mode-tab:not(.on) .wl-ico {
+  display: none;
+}
+
+@media (max-width: 819px) {
+  .wl-logo {
+    height: 40px;
+  }
+
+  .wl-mode-tab {
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  /* Tabs that don't fit beside the logo wrap to a full-width row of their own rather than run off
+     the edge or under the header's right-hand label, which stays up by the logo */
+  .wl-header {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .wl-mode-tabs {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: auto;
+    max-width: 520px;
+  }
+
+  .wl-mode-tab {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .wl-header-right {
+    order: 1;
+  }
+
+  /* Empty on phones outside Arbeidslogg, where it would only cost a gap */
+  .wl-header-right:empty {
+    display: none;
+  }
+}
+
+/* Phones: no icon on the active tab, so logo and tabs share one row down to 390px */
+@media (max-width: 479px) {
+  .wl-mode-tab .wl-ico {
+    display: none;
+  }
+}
+
+/* ...helped by a smaller logo on 390–419px phones (iPhone 12–15); narrower ones wrap */
+@media (max-width: 419px) {
+  .wl-logo {
+    height: 34px;
+  }
+}
+
+
+/* === Shared form controls: segmented choice, difficulty swatch, confirm box === */
+
+.wl-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wl-segmented > button {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font: 500 13px var(--sans);
+  min-height: 42px;
+  padding: 0 10px;
+  border: none;
+  border-left: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wl-segmented > button:first-child {
+  border-left: none;
+}
+
+.wl-segmented > button.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.wl-diff-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.wl-diff-swatch.large {
+  width: 18px;
+  height: 18px;
+  margin: 0 21px;
+}
+
+.wl-confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  background: rgba(200, 36, 43, 0.05);
+  font-size: 13px;
+}
+
+/* === Kind symbols and square map markers === */
+
+.wl-kind-square {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.wl-square-pin {
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+
+.wl-square-pin .wl-ico {
+  color: #fff;
+}
+
+/* === InfoList (Hva finnes) === */
+
+/* Turområde filter pill, centred at the top of the map (see MapAreaFilter) */
+.wl-map-area-filter {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+}
+
+.wl-area-select {
+  max-width: 240px;
+  padding: 0 34px 0 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231b2620' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+/* .wl-layer-chip.on sets the `background` shorthand, which would tile the chevron: restate it all */
+.wl-area-select.on {
+  background-color: var(--ink);
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.wl-area-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow maps: the centred filter would land on the legend and the kind pills, so it moves to the
+   top-left with the legend below it. The phone layout further down shifts both under the pill row. */
+@container wl-map (max-width: 720px) {
+  .wl-map-area-filter {
+    left: 12px;
+    transform: none;
+  }
+
+  .wl-map-overlay-left:has(~ .wl-map-area-filter) {
+    top: 58px;
+  }
+
+  .wl-area-panel {
+    left: 0;
+    transform: none;
+  }
+
+  /* Arbeidslogg's Arbeid/Grunneiere/Ruter pills would wrap onto the legend: stack them down the
+     right edge like the kind pills, with the admin buttons down by the zoom controls */
+  .wl-layer-chips-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+
+  .wl-map-actions {
+    top: auto;
+    bottom: 20px;
+    right: 64px;
+  }
+}
+
+/* Checklist under the pill, same look as the background-map panel */
+.wl-area-panel {
+  right: auto;
+  bottom: auto;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.wl-area-panel .wl-layer-option {
+  white-space: nowrap;
+}
+
+.wl-area-panel-sep {
+  flex: none;
+  height: 1px;
+  margin: 2px 6px;
+  background: var(--line);
+}
+
+.wl-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(27, 38, 32, 0.35);
+  background: #fff center / 10px no-repeat;
+}
+
+.wl-layer-option.on .wl-check {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+.wl-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wl-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Collapsible kind group heading in Hva finnes */
+.wl-group-heading {
+  font: inherit;
+}
+
+.wl-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-group-toggle .wl-group-title {
+  flex: 1;
+  margin: 0;
+}
+
+.wl-group-chevron {
+  font-size: 14px;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.15s;
+}
+
+.wl-group-chevron.open {
+  transform: none;
+}
+
+.wl-info-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 6px;
+  border: none;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-info-row:hover {
+  background: var(--hover);
+}
+
+.wl-info-row .wl-entry-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.wl-info-dist {
+  white-space: nowrap;
+}
+
+/* === PointDetail + ImageGallery === */
+
+.wl-gallery:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.wl-gallery-empty {
+  background: repeating-linear-gradient(45deg, var(--stone) 0 6px, #f0f0ec 6px 12px);
+}
+
+.wl-gallery-placeholder {
+  position: absolute;
+  inset: 0 0 30% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wl-gallery-counter {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font: 500 11px var(--mono);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(12, 18, 14, 0.65);
+  color: #fff;
+}
+
+.wl-gallery-thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 8px var(--pad) 0;
+}
+
+.wl-gallery-thumb {
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--stone);
+}
+
+.wl-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wl-gallery-thumb.on {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.wl-hero-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  font: 600 11px var(--mono);
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #fff;
+}
+
+.wl-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin: 14px var(--pad) 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.wl-facts > div {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: -1px 0 0 rgba(27, 38, 32, 0.1), 0 -1px 0 rgba(27, 38, 32, 0.1);
+}
+
+.wl-facts strong {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.wl-fact-link {
+  font: 700 16px var(--sans);
+  color: var(--green);
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-crosslink-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: calc(100% - 2 * var(--pad));
+  margin: 12px var(--pad) 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-crosslink-card:hover {
+  border-color: var(--ink);
+}
+
+.wl-crosslink-arrow {
+  font-weight: 700;
+  color: var(--green);
+}
+
+.wl-about-box {
+  margin: 14px var(--pad) 0;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: rgba(47, 93, 58, 0.07);
+}
+
+.wl-about-box p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wl-route-chip {
+  padding-left: 10px;
+}
+
+.wl-updated {
+  margin-top: 20px;
+  margin-bottom: 28px;
+}
+
+/* === RouteList (Turruter) === */
+
+.wl-diff-chips {
+  flex-wrap: wrap;
+}
+
+.wl-diff-chips .wl-chip.pill {
+  padding-left: 10px;
+}
+
+.wl-route-thumb {
+  position: relative;
+}
+
+.wl-route-thumb::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 6px;
+  background: var(--diff);
+}
+
+.wl-route-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.wl-route-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 11px var(--mono);
+  padding: 2px 7px 2px 4px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.wl-route-badge .wl-ico {
+  width: 13px;
+  height: 13px;
+}
+
+/* === RouteDetail + AlongStrip === */
+
+.wl-along {
+  margin: 16px var(--pad) 0;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.wl-along-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.wl-along-scroll {
+  overflow-x: auto;
+  padding-top: 6px;
+}
+
+.wl-along-track {
+  position: relative;
+  min-width: 260px;
+  margin: 0 12px;
+}
+
+.wl-along-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.wl-along-band {
+  position: absolute;
+  top: -3px;
+  height: 14px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.wl-along-marker {
+  position: absolute;
+  top: -8px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  border-radius: 6px;
+  border: 2px solid #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.wl-along-marker .wl-ico {
+  width: 12px;
+  height: 12px;
+  color: #fff;
+}
+
+.wl-along-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.wl-underveis-row {
+  display: grid;
+  grid-template-columns: 76px 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 6px;
+  border: none;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-underveis-row:hover {
+  background: var(--hover);
+}
+
+.wl-underveis-km {
+  white-space: nowrap;
+}
+
+.wl-owner-route-row {
+  grid-template-columns: 60px minmax(0, 1fr) auto;
+}
+
+/* === Map legend lines + status pill === */
+
+.wl-legend-line {
+  flex: none;
+  width: 22px;
+  height: 5px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(27, 38, 32, 0.12);
+}
+
+.wl-legend-line.plank {
+  height: 7px;
+  border-radius: 1px;
+}
+
+.wl-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1f63b4;
+  box-shadow: 0 0 0 3px rgba(31, 99, 180, 0.25);
+}
+
+/* === AdminDrawTools (legacy line toolbar, kept for reference) === */
+
+.admin-draw-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-tool-btn.muted {
+  opacity: 0.7;
+}
+
+/* === Mobile layouts for Hva finnes / Turruter (Arbeidslogg keeps its own rules above) === */
+
+@media (max-width: 819px) {
+  .wl-mode-finnes .wl-map,
+  .wl-mode-ruter .wl-map,
+  .wl-mode-grunneiere .wl-map {
+    flex: 0 0 clamp(220px, 40vh, 420px);
+  }
+
+  .wl-mode-finnes .wl-info-row,
+  .wl-mode-finnes .wl-underveis-row,
+  .wl-mode-ruter .wl-underveis-row,
+  .wl-mode-ruter .wl-route-row {
+    min-height: 64px;
+  }
+
+  /* Chip rows scroll sideways instead of wrapping into a tall block */
+  .wl-mode-ruter .wl-diff-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  /* Filters and Tegnforklaring share one small button at the top-left of the map (MapFilterMenu),
+     opening a panel that reaches at most to the map's bottom edge and scrolls inside */
+  .wl-filter-menu {
+    position: absolute;
+    inset: 10px;
+    z-index: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  .wl-filter-menu > * {
+    pointer-events: auto;
+  }
+
+  .wl-filter-menu-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* .wl-ico is white for coloured badges; on the white buttons and plain layer icons it follows
+     the text instead (the legend's coloured symbols keep their white icons) */
+  .wl-filter-menu-btn .wl-ico,
+  .wl-filter-close .wl-ico,
+  .wl-layer-kind-icon.plain .wl-ico {
+    color: currentColor;
+  }
+
+  .wl-map .wl-filter-menu-btn .wl-ico {
+    width: 14px;
+    height: 14px;
+  }
+
+  .wl-map .wl-filter-menu-btn.on {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .wl-filter-menu-btn .wl-count-badge {
+    min-width: 18px;
+    height: 18px;
+  }
+
+  .wl-filter-panel {
+    width: min(280px, 100%);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 6px 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+  }
+
+  .wl-filter-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 8px;
+  }
+
+  .wl-filter-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .wl-filter-close .wl-ico {
+    width: 18px;
+    height: 18px;
+  }
+
+  .wl-filter-section {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line);
+  }
+
+  .wl-filter-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 8px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font: 700 13px var(--sans);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .wl-filter-section-title {
+    flex: 1;
+  }
+
+  .wl-filter-section-summary {
+    font: 500 11px var(--mono);
+    color: var(--muted);
+  }
+
+  .wl-filter-chevron {
+    flex: none;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+
+  .wl-filter-chevron.open {
+    transform: rotate(180deg);
+  }
+
+  .wl-filter-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-bottom: 6px;
+  }
+
+  /* Symbols sit on their kind's colour (white icon); the layer toggles get a plain, dark icon */
+  .wl-filter-section .wl-layer-kind-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    color: #fff;
+  }
+
+  .wl-filter-section .wl-layer-kind-icon.plain {
+    color: var(--ink);
+  }
+
+  .wl-filter-section .wl-layer-kind-icon .wl-ico {
+    width: 13px;
+    height: 13px;
+  }
+
+  .wl-filter-section .wl-layer-kind-icon.plain .wl-ico {
+    width: 16px;
+    height: 16px;
+  }
+
+  .wl-filter-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 2px 8px 0;
+  }
+
+  /* Admin map buttons take the top-right corner, clear of the filter button */
+  .wl-map .wl-map-actions {
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+    left: 230px;
+  }
+
+  /* Smaller map buttons so they cover less of the small map */
+  .wl-map .wl-legend-toggle,
+  .wl-map .wl-map-btn {
+    min-height: 30px;
+    font-size: 11px;
+    padding: 0 10px;
+  }
+
+  .wl-map .wl-control-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  /* Touch screens pinch to zoom, and without these buttons the control stack stays clear of the
+     pill row on a short map */
+  @media (pointer: coarse) {
+    .wl-zoom-group {
+      display: none;
+    }
+  }
+
+  /* Keep the strip legible: scroll it rather than squeezing it */
+  .wl-along-track {
+    min-width: 420px;
+  }
+}
+
+/* === Grunneiere list === */
+
+.wl-owner-row {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.wl-owner-row .wl-mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wl-owner-area-select {
+  width: auto;
+  min-height: var(--chip-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* === OwnerDetail hero (Grunneier) === */
+
+.wl-owner-hero {
+  position: relative;
+  aspect-ratio: 5 / 2;
+  min-height: 150px;
+  margin: 0 var(--pad);
+  border-radius: 6px;
+  overflow: hidden;
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--owner) 14%, #fff) 0 6px, color-mix(in srgb, var(--owner) 7%, #fff) 6px 12px);
+  border: 1.5px dashed var(--owner);
+}
+
+.wl-owner-hero-symbol {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--owner);
+}
+
+.wl-owner-hero-symbol .wl-ico {
+  width: 24px;
+  height: 24px;
+}
+
+.wl-owner-hero-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.wl-owner-hero-caption h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.wl-owner-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--owner);
+  color: #fff;
+  font: 700 12px var(--sans);
+}
+
+.wl-here-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 11px var(--mono);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.wl-here-pill .wl-status-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.wl-call-btn {
+  margin: 12px var(--pad) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 15px var(--sans);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.wl-call-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+.wl-call-btn .wl-ico {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}
+
+.wl-call-btn.secondary {
+  margin-top: 8px;
+  min-height: 42px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  font-size: 14px;
+}
+
+.wl-call-btn.secondary:hover {
+  border-color: var(--ink);
+  background: #fff;
+  color: var(--ink);
+}
+
+.wl-call-btn .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wl-note-card {
+  margin: 12px var(--pad) 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wl-note-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.wl-pill-section {
+  margin: 14px var(--pad) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wl-route-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px var(--sans);
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.wl-route-pill:hover {
+  border-color: var(--ink);
+}
+
+.wl-route-pill-line {
+  flex: none;
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* === Map attribution (© Kartverket etc.): quiet in the corner, smaller on mobile === */
+
+.wl-map .leaflet-container .leaflet-control-attribution {
+  padding: 0 5px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border-top-right-radius: 4px;
+}
+
+@media (max-width: 819px) {
+  .wl-map .leaflet-container .leaflet-control-attribution {
+    padding: 0 4px;
+    font-size: 9px;
+    line-height: 14px;
+  }
+}
+
+.wl-map .leaflet-control-attribution a {
+  color: inherit;
 }

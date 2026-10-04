@@ -80,7 +80,7 @@ export default function MapControls({ map, baseLayer, onBaseLayer, userLocation,
         </button>
       </div>
 
-      <div className="wl-control-group">
+      <div className="wl-control-group wl-zoom-group">
         <button type="button" className="wl-control-btn" title="Zoom inn" onClick={() => map?.zoomIn()}><Icon raw={plusIcon} /></button>
         <button type="button" className="wl-control-btn" title="Zoom ut" onClick={() => map?.zoomOut()}><Icon raw={minusIcon} /></button>
       </div>
