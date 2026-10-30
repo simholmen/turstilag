@@ -188,7 +188,8 @@ function Markers({
     // to remove, each part of that network takes the click and the chosen one turns red.
     const editedNetworkId = edit?.kind?.startsWith('network') ? edit.id : null
     const removing = edit?.kind === 'network-remove'
-    const shaping = edit?.kind === 'network-shape'
+    // Editing an existing network makes its lines draggable
+    const shaping = edit?.kind === 'network' && Boolean(edit.id) && Boolean(edit.draft.parts)
     if (layers.trails || edit?.kind?.startsWith('network')) {
       networks.forEach((n) => {
         const own = editedNetworkId === n.id

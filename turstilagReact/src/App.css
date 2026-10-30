@@ -503,6 +503,20 @@ textarea {
   min-height: 36px;
 }
 
+/* A button with a leading icon, e.g. "Rediger stinettverk" */
+.wl-btn:has(> .wl-ico) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wl-btn > .wl-ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
+}
+
 .wl-btn.primary {
   padding: 0 18px;
   border-color: var(--ink);

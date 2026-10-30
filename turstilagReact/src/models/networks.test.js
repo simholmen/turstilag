@@ -87,6 +87,7 @@ describe('dragging vertices', () => {
   })
 
   it('needs at least one line to save', () => {
-    expect(missingNetworkFields({ kind: 'network-shape', id: '1', draft: { parts: [branch] } })).toEqual([])
+    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', parts: [branch] } })).toEqual([])
+    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', parts: [] } })).toEqual(['sti (minst 2 punkter)'])
   })
 })
