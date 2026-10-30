@@ -1,24 +1,29 @@
-import { MAX_SNAP_M, missingNetworkFields, partLengthM } from '../../models/networks'
+import { MAX_SNAP_M, missingNetworkFields, networkPath, partLengthM } from '../../models/networks'
 import { fmtDist } from '../../models/worklog'
 import GeometryDrawField from '../worklog/GeometryDrawField'
+import StylePicker from './StylePicker'
 
 const HEADINGS = {
   'network-path': 'Legg til sti',
+  'network-style': 'Merk strekning',
   'network-remove': 'Fjern en bit',
 }
 
 // Scrollable form body for the network edits: 'network' (name, turområde, description — plus the first
 // path when new, or its vertices dragged in the map when not), 'network-path' (a path added from the
-// network outwards) and 'network-remove' (one part picked in the map). `network` is the one being changed, if any.
-// `snapM` is the festeavstand, changed with the slider shown whenever lines are drawn or dragged.
+// network outwards), 'network-style' (a stretch between two clicks given a colour and line type) and
+// 'network-remove' (one part picked in the map). `network` is the one being changed, if any. `snapM` is
+// the festeavstand, changed with the slider shown whenever lines are drawn or dragged.
 export function NetworkEditForm({
-  edit, network, areas, placing, tried, snapM, onSnapM, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw,
+  edit, network, areas, placing, tried, snapM, onSnapM, onRestartStretch, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw,
 }) {
   const { kind, draft } = edit
   const set = (key) => (event) => onChange({ [key]: event.target.value })
   const areaOptions = [...areas].sort((a, b) => a.name.localeCompare(b.name, 'nb'))
   const heading = HEADINGS[kind] || (edit.id ? 'Rediger stinettverk' : 'Nytt stinettverk')
   const part = kind === 'network-remove' && draft.part != null ? network?.parts[draft.part] : null
+  const stretch = kind === 'network-style' && draft.from && draft.to && network ? networkPath(network.parts, draft.from, draft.to) : null
+  const pickStyle = (patch) => onChange(patch)
 
   return (
     <>
@@ -52,6 +57,24 @@ export function NetworkEditForm({
               <textarea className="wl-input" rows={3} value={draft.desc} onChange={set('desc')} />
             </label>
           </>
+        )}
+
+        {kind === 'network' && (
+          <StylePicker
+            label={edit.id ? 'Farge og linjetype for hele nettverket' : 'Farge og linjetype'}
+            color={draft.color}
+            kind={draft.kind}
+            onChange={pickStyle}
+            hint={edit.id
+              ? (draft.color && draft.kind
+                ? 'Velger du noe annet her, gjelder det hele nettverket. Vil du bare endre en del, bruk «Merk strekning».'
+                : 'Nettverket har ulike farger eller linjetyper. Det du velger her, gjelder hele nettverket.')
+              : undefined}
+          />
+        )}
+
+        {kind === 'network-path' && (
+          <StylePicker label="Farge og linjetype for den nye stien" color={draft.color} kind={draft.kind} onChange={pickStyle} />
         )}
 
         {(kind === 'network-path' || (kind === 'network' && !edit.id)) && (
@@ -104,6 +127,24 @@ export function NetworkEditForm({
           </label>
         )}
 
+        {kind === 'network-style' && (
+          <>
+            <p className="wl-hint">
+              {!draft.from
+                ? 'Trykk i kartet der strekningen starter.'
+                : !draft.to
+                  ? 'Trykk der strekningen slutter. Den følger stiene, også over kryss.'
+                  : stretch
+                    ? `Valgt strekning: ca. ${fmtDist(partLengthM(stretch))}, markert i kartet.`
+                    : 'Fant ingen vei langs nettverket mellom de to punktene. Velg på nytt.'}
+            </p>
+            {draft.from && (
+              <button type="button" className="wl-link-btn" onClick={onRestartStretch}>Velg strekningen på nytt</button>
+            )}
+            <StylePicker label="Farge og linjetype" color={draft.color} kind={draft.kind} onChange={pickStyle} />
+          </>
+        )}
+
         {kind === 'network-remove' && (
           <p className="wl-hint">
             {part
@@ -116,7 +157,7 @@ export function NetworkEditForm({
   )
 }
 
-const SAVE_LABELS = { 'network-path': 'Legg til', 'network-remove': 'Fjern biten' }
+const SAVE_LABELS = { 'network-path': 'Legg til', 'network-style': 'Lagre strekningen', 'network-remove': 'Fjern biten' }
 
 // Sticky footer. Only the network itself can be deleted, from its own edit form.
 export function NetworkEditFooter({ edit, tried, saving, confirmDelete, saveError, onSave, onDelete, onCancel }) {

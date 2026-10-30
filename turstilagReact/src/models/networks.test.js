@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  DEFAULT_SNAP_M, insertNetworkVertex, junctionCount, readSnapM, missingNetworkFields, moveNetworkVertex, nearestOnNetwork, networkNodes, partLengthM,
+  DEFAULT_SNAP_M, DEFAULT_STYLE, insertNetworkVertex, junctionCount, networkPath, networkStyle, readSnapM, startStyle, missingNetworkFields, moveNetworkVertex, nearestOnNetwork, networkNodes, partLengthM,
 } = await import('./networks')
 
 // A loop with a spur: the loop is one closed part through J, the spur another part from J outwards,
@@ -98,7 +98,49 @@ describe('dragging vertices', () => {
   })
 
   it('needs at least one line to save', () => {
-    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', parts: [branch] } })).toEqual([])
-    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', parts: [] } })).toEqual(['sti (minst 2 punkter)'])
+    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', segments: [{ line: branch }] } })).toEqual([])
+    expect(missingNetworkFields({ kind: 'network', id: '1', draft: { name: 'Lima', segments: [] } })).toEqual(['sti (minst 2 punkter)'])
+  })
+})
+
+describe('the way between two points', () => {
+  it('follows one part between two points on it', () => {
+    const path = networkPath([branch], [58.7705, 5.85001], [58.7715, 5.85001])
+    expect(path[0]).toEqual([58.7705, 5.85])
+    expect(path[path.length - 1]).toEqual([58.7715, 5.85])
+    expect(partLengthM(path)).toBeGreaterThan(100)
+    expect(partLengthM(path)).toBeLessThan(120)
+  })
+
+  it("crosses a junction, through the network's own vertices", () => {
+    // From the middle of the spur (55 m south of J) to 166 m north of J on J -> K, above the loop
+    const path = networkPath([loop, spur, branch], [58.7695, 5.85], [58.7715, 5.85])
+    expect(path).toContainEqual(J)
+    expect(partLengthM(path)).toBeGreaterThan(215)
+    expect(partLengthM(path)).toBeLessThan(230)
+  })
+
+  it('takes the shorter way round a loop', () => {
+    // Both points on the loop, near J on either side: the short way is through J, not round the loop
+    const path = networkPath([loop], [58.7701, 5.8502], [58.7701, 5.8498])
+    expect(path).toContainEqual(J)
+  })
+
+  it('finds nothing between two disconnected networks', () => {
+    expect(networkPath([branch, [[58.80, 5.90], [58.81, 5.90]]], J, [58.805, 5.90])).toBeNull()
+  })
+})
+
+describe('styles', () => {
+  const seg = (color, kind) => ({ color, kind, line: branch })
+
+  it("reads a network's style where it is the same throughout", () => {
+    expect(networkStyle({ segments: [seg('bla', 'turvei'), seg('bla', 'turvei')] })).toEqual({ color: 'bla', kind: 'turvei' })
+    expect(networkStyle({ segments: [seg('bla', 'turvei'), seg('rod', 'turvei')] })).toEqual({ color: null, kind: 'turvei' })
+  })
+
+  it("starts a new path in the network's style, or the default where it varies", () => {
+    expect(startStyle({ segments: [seg('morkebla', 'vei')] })).toEqual({ color: 'morkebla', kind: 'vei' })
+    expect(startStyle({ segments: [seg('bla', 'vei'), seg('rod', 'tursti')] })).toEqual({ color: DEFAULT_STYLE.color, kind: DEFAULT_STYLE.kind })
   })
 })

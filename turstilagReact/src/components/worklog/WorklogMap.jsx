@@ -5,7 +5,7 @@ import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
-import { TRAIL_COLOR, networkNodes } from '../../models/networks'
+import { LINE_COLORS, LINE_KINDS, TRAIL_COLOR, networkNodes, networkPath } from '../../models/networks'
 import { snapLineToStretches } from '../../models/geometry'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -183,37 +183,51 @@ function Markers({
       if (entry.geomType === 'poly') addGeometry(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit) })
     })
 
-    // The stinettverk beneath the routes: dark paths on a white casing, and in Stinettverk (or while
-    // one is being edited) its nodes — dead ends small and hollow, junctions solid. While picking a bit
-    // to remove, each part of that network takes the click and the chosen one turns red.
+    // The stinettverk beneath the routes: each stretch in its colour and line type on a white casing,
+    // and in Stinettverk (or while one is being edited) its nodes — dead ends small and hollow,
+    // junctions solid. While picking a bit to remove, that network is drawn part by part instead, each
+    // taking the click, the chosen one in red.
     const editedNetworkId = edit?.kind?.startsWith('network') ? edit.id : null
     const removing = edit?.kind === 'network-remove'
     // Editing an existing network makes its lines draggable
-    const shaping = edit?.kind === 'network' && Boolean(edit.id) && Boolean(edit.draft.parts)
+    const shaping = edit?.kind === 'network' && Boolean(edit.id) && Boolean(edit.draft.segments)
     if (layers.trails || edit?.kind?.startsWith('network')) {
       networks.forEach((n) => {
         const own = editedNetworkId === n.id
         const selected = own || (!edit && networkId === n.id)
         const faded = edit ? !own : Boolean(networkId) && !selected
-        // While its lines are being dragged, the network is drawn from the draft
-        const parts = own && shaping ? edit.draft.parts : n.parts
-        parts.forEach((part, i) => {
-          const picked = own && removing && edit.draft.part === i
-          const clickable = interactive || (own && removing)
-          const onClick = own && removing ? () => onPartClick?.(i) : () => onNetworkClick?.(n.id)
-          const casing = L.polyline(part, { color: '#fff', weight: selected ? 9 : 6, opacity: faded ? 0.5 : 0.9, interactive: clickable })
-          const line = L.polyline(part, {
-            color: picked ? '#c8242b' : TRAIL_COLOR, weight: picked ? 6 : selected ? 5 : 3, opacity: faded ? 0.45 : 1, interactive: clickable,
+        const casingOf = (line, clickable) => L.polyline(line, { color: '#fff', weight: selected ? 9 : 7, opacity: faded ? 0.5 : 0.9, interactive: clickable })
+        if (own && removing) {
+          n.parts.forEach((part, i) => {
+            const picked = edit.draft.part === i
+            const onClick = () => onPartClick?.(i)
+            const casing = casingOf(part, true).on('click', onClick)
+            const line = L.polyline(part, { color: picked ? '#c8242b' : TRAIL_COLOR, weight: picked ? 6 : 4, interactive: true }).on('click', onClick)
+            casing.addTo(group)
+            line.addTo(group)
           })
-          if (clickable) {
-            casing.on('click', onClick)
-            line.on('click', onClick)
-          }
-          casing.addTo(group)
-          line.addTo(group)
-        })
+        } else {
+          // While its lines are being dragged, the network is drawn from the draft
+          const segments = own && shaping ? edit.draft.segments : n.segments
+          segments.forEach((s) => {
+            const onClick = () => onNetworkClick?.(n.id)
+            const casing = casingOf(s.line, interactive)
+            const line = L.polyline(s.line, {
+              color: LINE_COLORS[s.color].color, weight: selected ? 5 : 4, opacity: faded ? 0.45 : 1,
+              dashArray: LINE_KINDS[s.kind].dash, lineCap: 'butt', interactive,
+            })
+            if (interactive) {
+              casing.on('click', onClick)
+              line.on('click', onClick)
+            }
+            casing.addTo(group)
+            line.addTo(group)
+          })
+        }
         if (mode === 'stinettverk' || own) {
-          networkNodes(parts).forEach((node) => {
+          // Junctions come from the parts; while dragging, from the stretches being dragged
+          const nodeLines = own && shaping ? edit.draft.segments.map((s) => s.line) : n.parts
+          networkNodes(nodeLines).forEach((node) => {
             const junction = node.degree >= 3
             L.circleMarker(node.ll, {
               radius: junction ? 5 : 3.5, color: TRAIL_COLOR, weight: 2, fillColor: junction ? TRAIL_COLOR : '#fff', fillOpacity: faded ? 0.5 : 1, opacity: faded ? 0.5 : 1, interactive: false,
@@ -223,11 +237,28 @@ function Markers({
       })
     }
 
+    // The stretch being marked, from its first click to its second, along the network
+    if (edit?.kind === 'network-style') {
+      const target = networks.find((n) => n.id === edit.id)
+      const { from, to, color, kind } = edit.draft
+      const path = target && from && to ? networkPath(target.parts, from, to) : null
+      if (path) {
+        L.polyline(path, { color: '#ffd84a', weight: 14, opacity: 0.85, interactive: false }).addTo(group)
+        L.polyline(path, {
+          color: LINE_COLORS[color]?.color || TRAIL_COLOR, weight: 5, dashArray: LINE_KINDS[kind]?.dash, lineCap: 'butt', interactive: false,
+        }).addTo(group)
+      }
+      ;[from, to].filter(Boolean).forEach((ll) => {
+        L.circleMarker(ll, { radius: 7, color: '#1b2620', weight: 3, fillColor: '#ffd84a', fillOpacity: 1, interactive: false }).addTo(group)
+      })
+    }
+
     // Every vertex of the network being reshaped is a handle — one per coordinate, so dragging a junction
-    // moves all the parts that meet there — plus a midpoint on each stretch for adding a vertex
+    // or a change of style moves all the stretches that meet there — plus a midpoint on each stretch
+    // for adding a vertex
     if (shaping) {
       const vertices = new Map()
-      edit.draft.parts.forEach((part) => part.forEach((ll) => vertices.set(`${ll[0]},${ll[1]}`, ll)))
+      edit.draft.segments.forEach((s) => s.line.forEach((ll) => vertices.set(`${ll[0]},${ll[1]}`, ll)))
       vertices.forEach((ll) => {
         const marker = L.marker(ll, { icon: netVertexIcon(), draggable: true, zIndexOffset: 3000 })
         marker.on('dragend', () => {
@@ -236,7 +267,7 @@ function Markers({
         })
         marker.addTo(group)
       })
-      edit.draft.parts.forEach((part, i) => {
+      edit.draft.segments.forEach(({ line: part }, i) => {
         for (let j = 1; j < part.length; j += 1) {
           const mid = [(part[j - 1][0] + part[j][0]) / 2, (part[j - 1][1] + part[j][1]) / 2]
           const marker = L.marker(mid, { icon: midpointIcon(), draggable: true, zIndexOffset: 2800 })

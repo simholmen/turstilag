@@ -17,8 +17,9 @@ import {
 } from './models/worklog'
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import {
-  START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
-  readSnapM, removePart, saveNetwork, setNetworkGeometry, storeSnapM,
+  DEFAULT_STYLE, START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
+  networkPath, networkStyle, readSnapM, removePart, saveNetwork, setNetworkGeometry, setNetworkStyle, setNetworkStyleAll,
+  startStyle, storeSnapM,
 } from './models/networks'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
 import {
@@ -96,8 +97,8 @@ const nearestArea = (areas, [lat, lng]) => {
 
 const isOwnerEdit = (edit) => edit?.kind === 'owner' || edit?.kind === 'parcel'
 const isRouteEdit = (edit) => edit?.kind === 'route'
-// 'network' (name etc. — plus the first path when new, or its lines to drag when not), 'network-path' and
-// 'network-remove'
+// 'network' (name etc. — plus the first path when new, or its lines to drag when not), 'network-path',
+// 'network-style' (a stretch between two clicks given a colour and line type) and 'network-remove'
 const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
 
 // A network edit draws a path when it adds one: always for 'network-path', and for a new network
@@ -338,14 +339,24 @@ export default function AdminApp({ userEmail, onSignOut }) {
   }, { placing: false })
 
   const newNetwork = () => {
-    startEdit('network', null, { name: '', hub: '', desc: '', points: [] }, { placing: true, initialLL: area?.ll || null })
+    startEdit('network', null, { name: '', hub: '', desc: '', points: [], ...DEFAULT_STYLE }, { placing: true, initialLL: area?.ll || null })
   }
 
+  // The colour/type pickers show the network's own where it has one throughout, else nothing chosen;
+  // picking one sets it for the whole network on save
   const editNetwork = (n) => startEdit('network', n.id, {
-    name: n.name, hub: n.hubId || '', desc: n.desc, parts: n.parts.map((part) => part.map((ll) => [...ll])),
+    name: n.name, hub: n.hubId || '', desc: n.desc, ...networkStyle(n),
+    segments: n.segments.map((s) => ({ ...s, line: s.line.map((ll) => [...ll]) })),
   }, { placing: false })
 
-  const addNetworkPath = (n) => startEdit('network-path', n.id, { points: [] }, { placing: true })
+  const addNetworkPath = (n) => startEdit('network-path', n.id, { points: [], ...startStyle(n) }, { placing: true })
+
+  const markNetworkStretch = (n) => startEdit('network-style', n.id, { from: null, to: null, ...startStyle(n) }, { placing: true })
+
+  const restartStretch = () => {
+    updateDraft({ from: null, to: null })
+    setPlacing(true)
+  }
 
   const removeNetworkPart = (n) => startEdit('network-remove', n.id, { part: null }, { placing: false })
 
@@ -366,8 +377,13 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
   const handlePartClick = useCallback((part) => updateDraft({ part }), [updateDraft])
 
+  // The editor drags the stretches' lines; the styles stay with them
   const handleNetworkVertexMove = useCallback((from, to) => {
-    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: moveNetworkVertex(prev.draft.parts, from, to, snapM) } })
+    setEdit((prev) => {
+      if (!prev) return prev
+      const lines = moveNetworkVertex(prev.draft.segments.map((s) => s.line), from, to, snapM)
+      return { ...prev, draft: { ...prev.draft, segments: prev.draft.segments.map((s, i) => ({ ...s, line: lines[i] })) } }
+    })
   }, [snapM])
 
   const changeSnapM = (m) => {
@@ -375,11 +391,27 @@ export default function AdminApp({ userEmail, onSignOut }) {
     storeSnapM(m)
   }
 
-  const handleNetworkVertexInsert = useCallback((partIndex, index, ll) => {
-    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: insertNetworkVertex(prev.draft.parts, partIndex, index, ll) } })
+  const handleNetworkVertexInsert = useCallback((segmentIndex, index, ll) => {
+    setEdit((prev) => {
+      if (!prev) return prev
+      const lines = insertNetworkVertex(prev.draft.segments.map((s) => s.line), segmentIndex, index, ll)
+      return { ...prev, draft: { ...prev.draft, segments: prev.draft.segments.map((s, i) => ({ ...s, line: lines[i] })) } }
+    })
   }, [])
 
   const handlePlace = useCallback((ll) => {
+    // Marking a stretch: two clicks on the network, its start and its end
+    if (edit?.kind === 'network-style') {
+      const target = networks.find((n) => n.id === edit.id)
+      const near = target && nearestOnNetwork(ll, target.parts)
+      if (!near || near.distM > START_SNAP_M) {
+        flash('Trykk på en sti i nettverket')
+        return
+      }
+      updateDraft(edit.draft.from ? { to: near.ll } : { from: near.ll })
+      if (edit.draft.from) setPlacing(false)
+      return
+    }
     const vertex = accumulatesPoints(edit) ? snapVertex(edit, ll, edit.draft.points.length) : ll
     if (!vertex) {
       flash('Start med å trykke på en sti i nettverket')
@@ -398,7 +430,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
       return { ...prev, draft: { ...prev.draft, ...patch } }
     })
     if (!accumulatesPoints(edit)) setPlacing(false)
-  }, [areas, edit, snapVertex, flash])
+  }, [areas, edit, networks, snapVertex, flash, updateDraft])
 
   const handleDraftMove = useCallback((ll) => updateDraft({ ll }), [updateDraft])
 
@@ -482,17 +514,35 @@ export default function AdminApp({ userEmail, onSignOut }) {
         const first = edit.draft.points?.[0]
         const draft = { ...edit.draft, hub: edit.draft.hub || (first ? nearestArea(areas, first) : '') || '' }
         const id = await saveNetwork(original, draft)
-        if (!original) await addPath(id, edit.draft.points, snapM)
-        // Only send the lines back when a vertex was actually moved, so a rename never re-merges them
-        else if (JSON.stringify(edit.draft.parts) !== JSON.stringify(original.parts)) await setNetworkGeometry(id, edit.draft.parts, snapM)
+        if (!original) {
+          await addPath(id, edit.draft.points, snapM, { color: edit.draft.color, kind: edit.draft.kind })
+        } else {
+          // Only send the lines back when a vertex was actually moved, so a rename never re-merges them
+          if (JSON.stringify(edit.draft.segments) !== JSON.stringify(original.segments)) await setNetworkGeometry(id, edit.draft.segments, snapM)
+          // …and the style only when one was picked that differs from what the network had throughout
+          const had = networkStyle(original)
+          const style = {
+            color: edit.draft.color && edit.draft.color !== had.color ? edit.draft.color : null,
+            kind: edit.draft.kind && edit.draft.kind !== had.kind ? edit.draft.kind : null,
+          }
+          if (style.color || style.kind) await setNetworkStyleAll(id, style)
+        }
         await refreshNetworks()
         selectNetwork(id)
         flash(edit.id ? 'Stinettverket er oppdatert' : 'Nytt stinettverk opprettet')
       } else if (edit.kind === 'network-path') {
-        await addPath(edit.id, edit.draft.points, snapM)
+        await addPath(edit.id, edit.draft.points, snapM, { color: edit.draft.color, kind: edit.draft.kind })
         await refreshNetworks()
         selectNetwork(edit.id)
         flash('Stien er lagt til i nettverket')
+      } else if (edit.kind === 'network-style') {
+        const target = networks.find((n) => n.id === edit.id)
+        const path = networkPath(target.parts, edit.draft.from, edit.draft.to)
+        if (!path) throw new Error('Fant ingen vei langs nettverket mellom de to punktene')
+        await setNetworkStyle(edit.id, path, { color: edit.draft.color, kind: edit.draft.kind })
+        await refreshNetworks()
+        selectNetwork(edit.id)
+        flash('Strekningen er oppdatert')
       } else if (edit.kind === 'network-remove') {
         await removePart(edit.id, edit.draft.part, snapM)
         await refreshNetworks()
@@ -592,6 +642,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
           areas={areas}
           snapM={snapM}
           onSnapM={changeSnapM}
+          onRestartStretch={restartStretch}
           placing={placing}
           tried={tried}
           onCancel={cancelEdit}
@@ -662,6 +713,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
             onBack={() => navigate({ mode: 'stinettverk' })}
             onEdit={() => editNetwork(network)}
             onAddPath={() => addNetworkPath(network)}
+            onMarkStretch={() => markNetworkStretch(network)}
             onRemovePart={() => removeNetworkPart(network)}
           />
         )
@@ -910,6 +962,11 @@ export default function AdminApp({ userEmail, onSignOut }) {
           ) : edit?.kind === 'network' && edit.id ? (
             <div className="wl-place-banner active">
               <span>Dra punktene for å flytte linjene</span>
+            </div>
+          ) : edit?.kind === 'network-style' ? (
+            <div className={`wl-place-banner ${placing ? 'active' : ''}`}>
+              <span>{!edit.draft.from ? 'Trykk der strekningen starter' : !edit.draft.to ? 'Trykk der strekningen slutter' : 'Strekning valgt'}</span>
+              {!placing && <button type="button" onClick={restartStretch}>Velg på nytt</button>}
             </div>
           ) : edit?.kind === 'network-remove' ? (
             <div className="wl-place-banner active">
