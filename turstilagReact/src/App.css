@@ -2182,6 +2182,18 @@ textarea.wl-input {
     justify-content: center;
   }
 
+  /* Four tabs on the narrowest phones: tighter, and the active one without its icon */
+  @media (max-width: 400px) {
+    .wl-mode-tab {
+      padding: 0 8px;
+      font-size: 12px;
+    }
+
+    .wl-mode-tab .wl-ico {
+      display: none;
+    }
+  }
+
   .wl-header-right {
     order: 1;
   }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import milestoneIcon from 'lucide-static/icons/milestone.svg?raw'
 import routeIcon from 'lucide-static/icons/route.svg?raw'
 import landPlotIcon from 'lucide-static/icons/land-plot.svg?raw'
+import waypointsIcon from 'lucide-static/icons/waypoints.svg?raw'
 import { useWorklog } from './hooks/useWorklog'
 import { useOwners } from './hooks/useOwners'
 import { useRoutes } from './hooks/useRoutes'
@@ -32,19 +33,20 @@ import RouteDetail from './components/routes/RouteDetail'
 import NetworkList from './components/networks/NetworkList'
 import NetworkDetail from './components/networks/NetworkDetail'
 
+// In order of what matters most out on a walk; Stinettverk, the first, is what the page opens on
 const MODES = [
-  { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
+  { id: 'stinettverk', label: 'Stinettverk', icon: waypointsIcon },
   { id: 'ruter', label: 'Turruter', icon: routeIcon },
   { id: 'grunneiere', label: 'Eiendommer', icon: landPlotIcon },
+  { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
 ]
-// Arbeidslogg (?modus=arbeidslogg) and, until it gets its tab, Stinettverk (?modus=stinettverk) are
-// reachable but not among the primary tabs
+// Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
 const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
 
 // Mode and the selected point/route/network live in the URL so they survive reloads and Back works
 const readUrl = () => {
   const q = new URLSearchParams(window.location.search)
-  const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : 'finnes'
+  const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : MODES[0].id
   return {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,

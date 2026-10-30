@@ -45,11 +45,12 @@ import NetworkList from './components/networks/NetworkList'
 import NetworkDetail from './components/networks/NetworkDetail'
 import { NetworkEditFooter, NetworkEditForm } from './components/networks/NetworkEditPanel'
 
+// Same order as the public page; Stinettverk, the first, is what it opens on
 const MODES = [
   { id: 'stinettverk', label: 'Stinettverk', icon: waypointsIcon },
-  { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
   { id: 'ruter', label: 'Turruter', icon: routeIcon },
   { id: 'grunneiere', label: 'Eiendommer', icon: landPlotIcon },
+  { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
 ]
 // Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
 const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
@@ -57,7 +58,7 @@ const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
 // Mode and the selected point/route/network live in the URL so they survive reloads and Back works
 const readUrl = () => {
   const q = new URLSearchParams(window.location.search)
-  const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : 'finnes'
+  const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : MODES[0].id
   return {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,
