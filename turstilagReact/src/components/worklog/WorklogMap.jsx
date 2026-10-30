@@ -5,7 +5,7 @@ import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
-import { LINE_COLORS, LINE_KINDS, TRAIL_COLOR, networkNodes, networkPath } from '../../models/networks'
+import { LINE_COLORS, TRAIL_COLOR, lineLayers, networkNodes, networkPath, nodeKey } from '../../models/networks'
 import { snapLineToStretches } from '../../models/geometry'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -209,28 +209,41 @@ function Markers({
         } else {
           // While its lines are being dragged, the network is drawn from the draft
           const segments = own && shaping ? edit.draft.segments : n.segments
-          segments.forEach((s) => {
-            const onClick = () => onNetworkClick?.(n.id)
-            const casing = casingOf(s.line, interactive)
-            const line = L.polyline(s.line, {
-              color: LINE_COLORS[s.color].color, weight: selected ? 5 : 4, opacity: faded ? 0.45 : 1,
-              dashArray: LINE_KINDS[s.kind].dash, lineCap: 'butt', interactive,
+          // All halos first, then all lines, so no halo covers a neighbouring stretch's line
+          const onClick = () => onNetworkClick?.(n.id)
+          ;['halo', 'line'].forEach((layer) => segments.forEach((s) => {
+            const style = lineLayers(s.kind, selected ? 1.5 : 0)[layer]
+            const polyline = L.polyline(s.line, {
+              ...style,
+              color: layer === 'halo' ? '#fff' : LINE_COLORS[s.color].color,
+              opacity: (layer === 'halo' ? 0.9 : 1) * (faded ? 0.45 : 1),
+              interactive,
             })
-            if (interactive) {
-              casing.on('click', onClick)
-              line.on('click', onClick)
-            }
-            casing.addTo(group)
-            line.addTo(group)
-          })
+            if (interactive) polyline.on('click', onClick)
+            polyline.addTo(group)
+          }))
         }
         if (mode === 'stinettverk' || own) {
           // Junctions come from the parts; while dragging, from the stretches being dragged
           const nodeLines = own && shaping ? edit.draft.segments.map((s) => s.line) : n.parts
+          // Each node in the colour of the stretch it lies on: a junction as a dot ringed in white, a dead
+          // end as a ring
+          const colorAt = new Map()
+          ;(own && shaping ? edit.draft.segments : n.segments).forEach((s) => s.line.forEach((ll) => {
+            const key = nodeKey(ll)
+            if (!colorAt.has(key)) colorAt.set(key, LINE_COLORS[s.color].color)
+          }))
           networkNodes(nodeLines).forEach((node) => {
+            const color = colorAt.get(node.key) || TRAIL_COLOR
             const junction = node.degree >= 3
             L.circleMarker(node.ll, {
-              radius: junction ? 5 : 3.5, color: TRAIL_COLOR, weight: 2, fillColor: junction ? TRAIL_COLOR : '#fff', fillOpacity: faded ? 0.5 : 1, opacity: faded ? 0.5 : 1, interactive: false,
+              radius: junction ? 5.5 : 4,
+              color: junction ? '#fff' : color,
+              weight: junction ? 2 : 2.5,
+              fillColor: junction ? color : '#fff',
+              fillOpacity: faded ? 0.5 : 1,
+              opacity: faded ? 0.5 : 1,
+              interactive: false,
             }).addTo(group)
           })
         }
@@ -244,9 +257,9 @@ function Markers({
       const path = target && from && to ? networkPath(target.parts, from, to) : null
       if (path) {
         L.polyline(path, { color: '#ffd84a', weight: 14, opacity: 0.85, interactive: false }).addTo(group)
-        L.polyline(path, {
-          color: LINE_COLORS[color]?.color || TRAIL_COLOR, weight: 5, dashArray: LINE_KINDS[kind]?.dash, lineCap: 'butt', interactive: false,
-        }).addTo(group)
+        const { halo, line } = lineLayers(kind, 1)
+        L.polyline(path, { ...halo, color: '#fff', interactive: false }).addTo(group)
+        L.polyline(path, { ...line, color: LINE_COLORS[color]?.color || TRAIL_COLOR, interactive: false }).addTo(group)
       }
       ;[from, to].filter(Boolean).forEach((ll) => {
         L.circleMarker(ll, { radius: 7, color: '#1b2620', weight: 3, fillColor: '#ffd84a', fillOpacity: 1, interactive: false }).addTo(group)
