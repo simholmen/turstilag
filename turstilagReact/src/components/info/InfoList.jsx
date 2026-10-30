@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { imageUrl } from '../../lib/images'
-import { entrySubtypeLabel, fmtDist, groupEntriesByType, sortEntriesByDistance } from '../../models/worklog'
+import { entrySubtypeLabel, fmtDist, groupEntriesByType, needsRedraw, sortEntriesByDistance } from '../../models/worklog'
 import KindSquare from './KindSquare'
 import OwnerSymbol from '../worklog/OwnerSymbol'
 import { OwnerRow } from '../worklog/OwnerList'
@@ -45,11 +45,18 @@ export function PointRow({ entry, areaName, dist, onSelect }) {
 
 // "Hva finnes": every point, grouped by kind (each group collapsible) or sorted by distance, then the
 // grunneiere as their own collapsible group. `entries` and `owners` are already filtered by area and
-// by what is toggled on in the map.
+// by what is toggled on in the map. `showRedraw` (admin) adds a filter for the stiforbedringer that are
+// still points or areas and should be drawn as lines.
 export default function InfoList({
-  entries, owners = [], areas, sort, onSort, userLocation, geoError, onRequestLocation, onSelect, onSelectOwner,
+  entries: allEntries, owners: allOwners = [], areas, sort, onSort, userLocation, geoError, onRequestLocation, onSelect, onSelectOwner,
+  showRedraw = false,
 }) {
   const [collapsed, setCollapsed] = useState(() => new Set())
+  const [onlyRedraw, setOnlyRedraw] = useState(false)
+  const redrawCount = showRedraw ? allEntries.filter(needsRedraw).length : 0
+  const redrawing = onlyRedraw && redrawCount > 0
+  const entries = redrawing ? allEntries.filter(needsRedraw) : allEntries
+  const owners = redrawing ? [] : allOwners
   const toggleGroup = (key) => setCollapsed((prev) => {
     const next = new Set(prev)
     if (!next.delete(key)) next.add(key)
@@ -88,6 +95,17 @@ export default function InfoList({
           )
         })}
       </div>
+
+      {redrawCount > 0 && (
+        <div className="wl-pad wl-redraw">
+          <span className="wl-hint">
+            {redrawCount} {redrawCount === 1 ? 'stiforbedring er' : 'stiforbedringer er'} registrert som punkt eller flate og bør tegnes om som linje.
+          </span>
+          <button type="button" className={`wl-chip square ${redrawing ? 'on' : ''}`} aria-pressed={redrawing} onClick={() => setOnlyRedraw(!redrawing)}>
+            Vis bare disse
+          </button>
+        </div>
+      )}
 
       {entries.length === 0 && owners.length === 0 ? (
         <p className="wl-empty">Ingenting med valgte filtre. Slå på en type i kartet.</p>

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AttributionControl, MapContainer, TileLayer, useMap, useMapEvent } from 'react-leaflet'
 import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
-import { BRIDGE_COLOR, DIFFICULTY } from '../../models/routes'
+import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
 import { snapLineToStretches } from '../../models/geometry'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -76,17 +76,15 @@ const entryIcon = (html, size) => L.divIcon({ className: 'wl-divicon', html, ico
 const vertexIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: [22, 22], iconAnchor: [11, 11] })
 const midpointIcon = () => L.divIcon({ className: 'wl-divicon', html: midpointHtml(), iconSize: [14, 14], iconAnchor: [7, 7] })
 
-// Linear stiforbedring drawn over route lines: solid for a bridge, planks (brown/white dashes,
-// matching PLANK_BG in the sidebar strip) for everything else
-const addStretch = (group, entry, { interactive, onClick, faded }) => {
-  const bridge = entry.subtypes.includes('bru')
+// Linear entries drawn over route lines, as the stack of styles from stretchStyle. Every layer takes
+// the click, so the wide casing is part of the target.
+const addStretch = (group, entry, { interactive, onClick, faded, detailed }) => {
   const opacity = faded ? 0.5 : 1
-  if (!bridge) L.polyline(entry.latLngs, { color: '#fff', weight: 8, opacity, lineCap: 'butt', interactive: false }).addTo(group)
-  const line = L.polyline(entry.latLngs, {
-    color: BRIDGE_COLOR, weight: bridge ? 7 : 6, opacity, lineCap: 'butt', dashArray: bridge ? null : '3 2', interactive,
+  stretchStyle(entry.type, entry.subtypes, detailed).forEach((style) => {
+    const line = L.polyline(entry.latLngs, { lineCap: 'butt', ...style, opacity, interactive })
+    if (interactive) line.on('click', onClick)
+    line.addTo(group)
   })
-  if (interactive) line.on('click', onClick)
-  line.addTo(group)
 }
 
 const addArea = (group, entry, { interactive, onClick, faded }) => {
@@ -217,7 +215,7 @@ function Markers({
         && (shown.includes(e) || (mode === 'ruter' && e.type === 'stiforbedring')))
       stretches.forEach((entry) => {
         if (edit?.kind === 'entry' && edit.id === entry.key) return
-        addStretch(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit) })
+        addStretch(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit), detailed: mode !== 'ruter' })
       })
 
       shown.forEach((entry) => {
@@ -254,7 +252,7 @@ function Markers({
         if (!shownArea || entry.area !== shownArea) return
         if (!edit && filter && entry.type !== filter) return
         if (edit?.kind === 'entry' && edit.id === entry.key) return
-        addGeometry(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit) })
+        addGeometry(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit), detailed: true })
         const selected = !edit && entryId === entry.key
         const size = selected ? 36 : 28
         const html = `<div style="opacity:${edit ? 0.55 : 1}">${entryHtml(entry.type, size, selected)}</div>`
@@ -268,6 +266,11 @@ function Markers({
       const marker = L.marker(draft.ll, { icon: entryIcon(entryHtml(draft.type, 38, true, true), 38), draggable: true, zIndexOffset: 3000 })
       onDragEnd(marker)
       marker.addTo(group)
+    }
+
+    // An old stiforbedring point being redrawn as a line stays visible as a guide
+    if (edit?.kind === 'entry' && drawGeom && draft.oldGeom?.geomType === 'point' && draft.ll) {
+      L.marker(draft.ll, { icon: entryIcon(squareHtml(draft.type, 28, false, true), 28), interactive: false, zIndexOffset: 400 }).addTo(group)
     }
 
     // Multi-vertex drafts: parcels and area entries are closed shapes, routes and line entries open

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  GEOM_LABELS, SUBTYPES, TYPES, allowedGeoms, defaultGeom, entryGeomType, hasField, hasOtherSubtype, hasSubtypes,
+  GEOM_LABELS, SUBTYPES, TYPES, defaultGeom, draftGeoms, entryGeomType, hasField, hasOtherSubtype, hasSubtypes,
   isMultiSubtype, missingFields, subtypeAbout, validSubtypes,
 } from '../../models/worklog'
 import AdminImageField from '../AdminImageField'
@@ -8,6 +8,7 @@ import GeometryDrawField from './GeometryDrawField'
 import TypeDot from './TypeDot'
 
 const GEOM_FIELD_LABELS = { point: 'Plassering *', line: 'Strekning *', poly: 'Omriss *' }
+const GEOM_NOUNS = { point: 'et punkt', line: 'en strekning', poly: 'en flate' }
 
 // What changing kind does to the rest of the draft: subtypes, extra fields or a geometry type that the
 // new kind doesn't allow are cleared, since the database CHECKs would reject them.
@@ -16,10 +17,10 @@ const typePatch = (draft, type) => {
   const patch = { type, subtypes }
   if (!hasField(type, 'plasser')) patch.plasser = ''
   if (!hasField(type, 'hund')) patch.hund = ''
-  if (!allowedGeoms(type).includes(draft.geomType)) {
-    Object.assign(patch, { geomType: 'point', points: [], geomChosen: false })
+  if (!draftGeoms({ ...draft, type }).includes(draft.geomType)) {
+    Object.assign(patch, { geomType: defaultGeom(type), points: [], geomChosen: false })
   } else if (!draft.geomChosen) {
-    patch.geomType = defaultGeom(type, subtypes[0])
+    patch.geomType = defaultGeom(type)
   }
   return patch
 }
@@ -35,7 +36,9 @@ export function EditForm({
   // A kind change that would throw away drawn vertices waits here for confirmation
   const [pendingType, setPendingType] = useState(null)
   const geomType = isEntry && draft.type ? entryGeomType(draft) : 'point'
-  const geoms = isEntry && draft.type ? allowedGeoms(draft.type) : []
+  const geoms = isEntry && draft.type ? draftGeoms(draft) : []
+  // Still the old point or area of a stiforbedring that should be drawn as a line
+  const oldGeom = isEntry && draft.oldGeom?.type === draft.type && geoms.includes(draft.oldGeom.geomType) ? draft.oldGeom.geomType : null
   const subtypes = isEntry ? validSubtypes(draft.type, draft.subtypes) : []
   const multi = isEntry && isMultiSubtype(draft.type)
   const other = hasOtherSubtype(subtypes)
@@ -71,9 +74,7 @@ export function EditForm({
     const next = multi
       ? validSubtypes(draft.type, on ? subtypes.filter((s) => s !== subtype) : [...subtypes, subtype])
       : on ? [] : [subtype]
-    const patch = { subtypes: next }
-    if (!draft.geomChosen) patch.geomType = defaultGeom(draft.type, next[0])
-    applyGeometry(patch)
+    onChange({ subtypes: next })
   }
 
   const chooseGeom = (g) => {
@@ -118,7 +119,7 @@ export function EditForm({
               </div>
               {pendingType && (
                 <div className="wl-confirm-box">
-                  <span>{TYPES[pendingType].label} kan bare være et punkt. Den tegnede {draft.geomType === 'poly' ? 'flaten' : 'strekningen'} ({draft.points.length} punkter) forkastes.</span>
+                  <span>{TYPES[pendingType].label} kan ikke være {GEOM_NOUNS[draft.geomType]}. Den tegnede {draft.geomType === 'poly' ? 'flaten' : 'strekningen'} ({draft.points.length} punkter) forkastes.</span>
                   <div className="wl-row">
                     <button type="button" className="wl-btn small danger confirm" onClick={confirmType}>Forkast og bytt</button>
                     <button type="button" className="wl-btn small" onClick={() => setPendingType(null)}>Behold</button>
@@ -172,10 +173,15 @@ export function EditForm({
                 <div className="wl-segmented">
                   {geoms.map((g) => (
                     <button key={g} type="button" className={geomType === g ? 'on' : ''} aria-pressed={geomType === g} onClick={() => chooseGeom(g)}>
-                      {GEOM_LABELS[g]}
+                      {g === oldGeom ? `${GEOM_LABELS[g]} (som før)` : GEOM_LABELS[g]}
                     </button>
                   ))}
                 </div>
+                {oldGeom && (
+                  <span className="wl-hint">
+                    Stiforbedringer tegnes nå som linje. Denne er registrert som {GEOM_NOUNS[oldGeom]} – tegn strekningen på nytt, eller behold {oldGeom === 'point' ? 'punktet' : 'flaten'} inntil videre.
+                  </span>
+                )}
               </div>
             )}
 

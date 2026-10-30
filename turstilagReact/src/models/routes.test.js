@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  PLANK_BG, buildAlong, buildStrip, fmtTime, missingRouteFields, pointsToLineGeometry, rowToRoute, toLatLngLine,
+  PLANK_BG, STRETCH_STYLES, buildAlong, buildStrip, fmtTime, missingRouteFields, pointsToLineGeometry, rowToRoute, stretchStyle, toLatLngLine,
 } = await import('./routes')
 
 describe('line geometry', () => {
@@ -85,5 +85,15 @@ describe('along the route', () => {
     expect(strip.bands[0].bg).toBe(PLANK_BG)
     expect(strip.markers.every((m) => parseFloat(m.left) <= 100)).toBe(true)
     expect(strip.axis).toEqual(['0', '1,5', '3,0'])
+  })
+})
+
+describe('stretch styles', () => {
+  it('keeps Turruter to bru and planks, and gives Hva finnes one look per subtype', () => {
+    expect(stretchStyle('stiforbedring', ['bru'], false)).toBe(STRETCH_STYLES.bru)
+    expect(stretchStyle('stiforbedring', ['grus'], false)).toBe(STRETCH_STYLES.klopp)
+    expect(stretchStyle('stiforbedring', ['grus'], true)).toBe(STRETCH_STYLES.grus)
+    expect(stretchStyle('stiforbedring', [], true)).toBe(STRETCH_STYLES.klopp)
+    expect(stretchStyle('annet', [], true).at(-1).color).toBe('#5b6259')
   })
 })

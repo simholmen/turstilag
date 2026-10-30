@@ -3,7 +3,8 @@
 Status:
 - Fase 1 er implementert på branchen `feature/fase1-taksonomi` (migrering `20261030120000_fase1_taxonomy_keys.sql`, overgangsversjon).
 - Oppfølgingsmigreringen `20261030130000_fase1_drop_old_keys.sql` er kjørt: databasen godtar bare de nye nøklene. Fase 1 er ferdig.
-- Fase 2–5 er ikke startet.
+- Fase 2 er implementert på branchen `feature/fase2-geometri` (migrering `20261030140000_fase2_parkering_flate.sql` er kjørt). Gjenstår: tegne om de 48 gamle stiforbedringspunktene som linjer..
+- Fase 3–5 er ikke startet.
 
 ## Beslutninger
 
