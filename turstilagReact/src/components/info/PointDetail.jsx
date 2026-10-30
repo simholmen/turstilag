@@ -69,7 +69,7 @@ export default function PointDetail({ entry, areas, owners, parcels, routes, onB
         <button key={o.id} type="button" className="wl-crosslink-card" onClick={() => onSelectOwner(o.id)}>
           <OwnerSymbol color={o.color} size={40} />
           <span className="wl-area-row-main">
-            <span className="wl-label">Grunneier her</span>
+            <span className="wl-label">Eiendom her</span>
             <span className="wl-area-name">{o.name}</span>
           </span>
           <span className="wl-crosslink-arrow">→</span>

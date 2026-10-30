@@ -1509,6 +1509,45 @@ textarea {
   gap: 6px;
 }
 
+/* One contact person on an eiendom: a boxed group of fields with "Fjern" in the corner */
+.wl-contact-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.wl-contact-card legend {
+  padding: 0 4px;
+}
+
+.wl-contact-remove {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+}
+
+/* Contact persons in the eiendom detail */
+.wl-contact {
+  margin: 14px var(--pad) 0;
+}
+
+.wl-contact-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.wl-contact .wl-call-btn {
+  margin: 8px 0 0;
+}
+
 .wl-input {
   font: 400 15px var(--sans);
   color: var(--ink);

@@ -23,7 +23,7 @@ function StretchSwatch({ subtypes, detailed }) {
   )
 }
 
-// `usedTypes` decides whether the fallback "Annet" type is listed. Grunneiere get one row with the
+// `usedTypes` decides whether the fallback "Annet" type is listed. Eiendommer get one row with the
 // shared symbol rather than one per owner — each owner's colour is on the map itself. `mode` switches
 // between the Arbeidslogg legend (circles, area counts) and the sign-symbol modes, where the listed
 // kinds follow the map's kind toggles. `hideKinds` leaves the kinds out where their toggles already
@@ -47,7 +47,7 @@ export function LegendRows({ usedTypes, layers, hasOwners = false, mode = 'arbei
       {worklog && layers.work && <div className="wl-legend-row wl-legend-area"><span className="wl-count-badge">5</span>Turområde · antall</div>}
       {showOwners && (
         <div className={`wl-legend-row ${types.length ? 'wl-legend-area' : ''}`}>
-          <OwnerSymbol />Grunneier · eiendom
+          <OwnerSymbol />Eiendom · teig
         </div>
       )}
       {showRoutes && (

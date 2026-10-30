@@ -13,7 +13,7 @@ const MAIL = mailIcon.slice(mailIcon.indexOf('<svg'))
 
 const Icon = ({ html }) => <span className="wl-ico" dangerouslySetInnerHTML={{ __html: html }} />
 
-// A grunneier: hero with the owner symbol, facts, call button, hensyn, routes across the land and
+// An eiendom: hero with the owner symbol, facts, contact persons, hensyn, routes across the land and
 // the points on it. `onSelectPoint` gives the Hva finnes point rows; without it (Arbeidslogg) the
 // points are the expandable worklog entries driven by `entryId`/`onToggleEntry`.
 // onEditOwner / onNewParcel / onEditParcel are only passed in admin.
@@ -38,7 +38,6 @@ export default function OwnerDetail({
       )),
     },
     owner.dyr && { key: 'Dyr', value: owner.dyr },
-    owner.contact && { key: 'Kontakt', value: owner.contact },
     !owner.dyr && { key: 'Areal', value: `${daaText(owner.daa)} daa` },
   ].filter(Boolean)
 
@@ -53,11 +52,11 @@ export default function OwnerDetail({
         {here && <span className="wl-here-pill"><span className="wl-status-dot" />Du står her</span>}
         {onEditOwner && (
           <button type="button" className="wl-hero-edit" onClick={onEditOwner}>
-            <Icon html={PENCIL} />Rediger grunneier
+            <Icon html={PENCIL} />Rediger eiendom
           </button>
         )}
         <div className="wl-owner-hero-caption">
-          <span className="wl-owner-badge">Grunneier</span>
+          <span className="wl-owner-badge">Eiendom</span>
           <h1>{owner.name}</h1>
         </div>
       </div>
@@ -73,19 +72,27 @@ export default function OwnerDetail({
         </div>
       )}
 
-      {owner.phone && (
-        <a href={`tel:${owner.phone.replace(/\s/g, '')}`} className="wl-call-btn">
-          <Icon html={PHONE} />Ring {owner.contact || owner.name} · {owner.phone}
-        </a>
-      )}
-      {owner.email && (
-        <a
-          href={`mailto:${owner.email}?subject=${encodeURIComponent(`Henvendelse fra Ålgård turstilag – ${owner.name}`)}`}
-          className="wl-call-btn secondary"
-        >
-          <Icon html={MAIL} /><span className="truncate">Send e-post · {owner.email}</span>
-        </a>
-      )}
+      {owner.contacts.map((c, i) => (
+        <div key={i} className="wl-contact">
+          <div className="wl-contact-head">
+            {c.name && <strong>{c.name}</strong>}
+            {c.role && <span className="wl-label">{c.role}</span>}
+          </div>
+          {c.phone && (
+            <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="wl-call-btn">
+              <Icon html={PHONE} />Ring {c.name || c.role || owner.name} · {c.phone}
+            </a>
+          )}
+          {c.email && (
+            <a
+              href={`mailto:${c.email}?subject=${encodeURIComponent(`Henvendelse fra Ålgård turstilag – ${owner.name}`)}`}
+              className="wl-call-btn secondary"
+            >
+              <Icon html={MAIL} /><span className="truncate">Send e-post · {c.email}</span>
+            </a>
+          )}
+        </div>
+      ))}
 
       {owner.note && (
         <div className="wl-note-card">
@@ -123,12 +130,12 @@ export default function OwnerDetail({
       )}
 
       <div className="wl-heading wl-subheading">
-        <h2 className="wl-h2">Eiendommer</h2>
+        <h2 className="wl-h2">Teiger</h2>
         <span className="wl-mono">{plural(owner.parcels.length, 'teig', 'teiger')} · {daaText(owner.daa)} daa</span>
       </div>
 
       {onNewParcel && (
-        <div className="wl-pad"><button type="button" className="wl-dashed-btn" onClick={onNewParcel}>+ Ny eiendom for {owner.name}</button></div>
+        <div className="wl-pad"><button type="button" className="wl-dashed-btn" onClick={onNewParcel}>+ Ny teig for {owner.name}</button></div>
       )}
 
       <div className="wl-list wl-parcel-list">
@@ -145,15 +152,15 @@ export default function OwnerDetail({
               </div>
             </div>
             {onEditParcel && (
-              <button type="button" className="wl-icon-btn" title="Rediger eiendom" onClick={() => onEditParcel(parcel)}>
+              <button type="button" className="wl-icon-btn" title="Rediger teig" onClick={() => onEditParcel(parcel)}>
                 <Icon html={PENCIL} />
               </button>
             )}
           </div>
         ))}
-        {owner.parcels.length === 0 && <p className="wl-empty">Ingen eiendommer registrert ennå.</p>}
+        {owner.parcels.length === 0 && <p className="wl-empty">Ingen teiger registrert ennå.</p>}
       </div>
-      <p className="wl-hint wl-pad">Eiendomsgrensene er omtrentlige og kun veiledende.</p>
+      <p className="wl-hint wl-pad">Teiggrensene er omtrentlige og kun veiledende.</p>
     </>
   )
 }

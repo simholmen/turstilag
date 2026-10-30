@@ -63,7 +63,7 @@ export default function RouteDetail({ route, owners, onBack, onSelectPoint, onSe
       {routeOwners.length > 0 && (
         <>
           <div className="wl-heading wl-subheading">
-            <h2 className="wl-h2">Grunneiere langs ruta</h2>
+            <h2 className="wl-h2">Eiendommer langs ruta</h2>
           </div>
           <div className="wl-list">
             {routeOwners.map((o) => (
@@ -71,7 +71,7 @@ export default function RouteDetail({ route, owners, onBack, onSelectPoint, onSe
                 <div className="wl-owner-swatch-box" style={{ background: o.fill, boxShadow: `inset 0 0 0 2px ${o.color}` }}>{o.name.charAt(0).toUpperCase()}</div>
                 <div className="wl-area-row-main">
                   <span className="wl-area-name">{o.name}</span>
-                  <span className="wl-mono">{[o.dyr, o.phone].filter(Boolean).join(' · ') || 'Ingen kontaktinfo'}</span>
+                  <span className="wl-mono">{[o.dyr, o.contacts.find((c) => c.phone)?.phone].filter(Boolean).join(' · ') || 'Ingen kontaktinfo'}</span>
                 </div>
               </button>
             ))}

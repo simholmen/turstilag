@@ -7,7 +7,7 @@ import { OwnerRow } from '../worklog/OwnerList'
 
 const SORTS = [['type', 'Etter type'], ['near', 'Nærmest meg']]
 
-// Collapse key for the grunneiere group; can't clash with a kind key
+// Collapse key for the eiendommer group; can't clash with a kind key
 const OWNERS_GROUP = 'grunneiere'
 
 // Collapsible section heading: icon, title, count and a chevron
@@ -44,7 +44,7 @@ export function PointRow({ entry, areaName, dist, onSelect }) {
 }
 
 // "Hva finnes": every point, grouped by kind (each group collapsible) or sorted by distance, then the
-// grunneiere as their own collapsible group. `entries` and `owners` are already filtered by area and
+// eiendommer as their own collapsible group. `entries` and `owners` are already filtered by area and
 // by what is toggled on in the map. `showRedraw` (admin) adds a filter for the entries still in a geometry
 // their kind no longer takes: stiforbedringer to redraw as lines, parkeringer as areas.
 export default function InfoList({
@@ -145,7 +145,7 @@ export default function InfoList({
           {owners.length > 0 && (
             <Group
               icon={<OwnerSymbol size={22} />}
-              title="Grunneiere"
+              title="Eiendommer"
               count={owners.length}
               open={!collapsed.has(OWNERS_GROUP)}
               onToggle={() => toggleGroup(OWNERS_GROUP)}

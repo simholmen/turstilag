@@ -9,7 +9,7 @@ const PENCIL = pencil.slice(pencil.indexOf('<svg'))
 const LIST = listIcon.slice(listIcon.indexOf('<svg'))
 
 // onEditArea / onNewEntry / onEditEntry are only passed in admin. `layers` decides whether the
-// Grunneiere and Utført arbeid sections show at all — they mirror the map's layer toggles.
+// Eiendommer and Utført arbeid sections show at all — they mirror the map's layer toggles.
 export default function AreaDetail({
   area, areaOwners = [], layers, entryId, filter, onBack, onFilter, onToggleEntry, onSelectOwner, onEditArea, onNewEntry, onEditEntry,
 }) {
@@ -42,8 +42,8 @@ export default function AreaDetail({
       {layers.owners && (
         <>
           <div className="wl-heading wl-subheading">
-            <h2 className="wl-h2">Grunneiere</h2>
-            <span className="wl-mono">{plural(areaOwners.length, 'grunneier', 'grunneiere')}</span>
+            <h2 className="wl-h2">Eiendommer</h2>
+            <span className="wl-mono">{plural(areaOwners.length, 'eiendom', 'eiendommer')}</span>
           </div>
           <div className="wl-list">
             {areaOwners.map((o) => (
@@ -61,7 +61,7 @@ export default function AreaDetail({
                 </div>
               </button>
             ))}
-            {areaOwners.length === 0 && <p className="wl-empty">Ingen grunneiere registrert i dette området ennå.</p>}
+            {areaOwners.length === 0 && <p className="wl-empty">Ingen eiendommer registrert i dette området ennå.</p>}
           </div>
         </>
       )}

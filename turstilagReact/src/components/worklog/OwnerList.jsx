@@ -4,7 +4,7 @@ import OwnerSymbol from './OwnerSymbol'
 
 const SORTS = [['az', 'A–Å'], ['daa', 'Størst areal']]
 
-// One grunneier: symbol in their colour, name, teiger · dyr · turområder, and total daa
+// One eiendom: symbol in their colour, name, teiger · dyr · turområder, and total daa
 export function OwnerRow({ owner, areas, onSelect }) {
   const sub = [
     plural(owner.parcels.length, 'teig', 'teiger'),
@@ -26,7 +26,7 @@ export function OwnerRow({ owner, areas, onSelect }) {
   )
 }
 
-// Every grunneier, for the Grunneiere mode. `owners` are view models from buildOwnerViews.
+// Every eiendom, for the Eiendommer mode. `owners` are view models from buildOwnerViews.
 // `onNewOwner` is only passed in admin.
 export default function OwnerList({ owners, areas, onSelect, onNewOwner }) {
   const [sort, setSort] = useState('az')
@@ -40,8 +40,8 @@ export default function OwnerList({ owners, areas, onSelect, onNewOwner }) {
   return (
     <>
       <div className="wl-heading">
-        <h1 className="wl-h1">Grunneiere</h1>
-        <span className="wl-mono">{plural(shown.length, 'grunneier', 'grunneiere')} · {daaText(totalDaa)} daa</span>
+        <h1 className="wl-h1">Eiendommer</h1>
+        <span className="wl-mono">{plural(shown.length, 'eiendom', 'eiendommer')} · {daaText(totalDaa)} daa</span>
       </div>
 
       <div className="wl-row wl-wrap wl-pad">
@@ -59,12 +59,12 @@ export default function OwnerList({ owners, areas, onSelect, onNewOwner }) {
       </div>
 
       {onNewOwner && (
-        <div className="wl-pad"><button type="button" className="wl-dashed-btn" onClick={onNewOwner}>+ Ny grunneier</button></div>
+        <div className="wl-pad"><button type="button" className="wl-dashed-btn" onClick={onNewOwner}>+ Ny eiendom</button></div>
       )}
 
       <div className="wl-list">
         {shown.map((o) => <OwnerRow key={o.id} owner={o} areas={areas} onSelect={onSelect} />)}
-        {shown.length === 0 && <p className="wl-empty">Ingen grunneiere registrert ennå.</p>}
+        {shown.length === 0 && <p className="wl-empty">Ingen eiendommer registrert ennå.</p>}
       </div>
     </>
   )

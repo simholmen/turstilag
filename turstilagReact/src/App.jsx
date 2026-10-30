@@ -32,7 +32,7 @@ import RouteDetail from './components/routes/RouteDetail'
 const MODES = [
   { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
   { id: 'ruter', label: 'Turruter', icon: routeIcon },
-  { id: 'grunneiere', label: 'Grunneiere', icon: landPlotIcon },
+  { id: 'grunneiere', label: 'Eiendommer', icon: landPlotIcon },
 ]
 // Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
 const MODE_IDS = ['finnes', 'ruter', 'grunneiere', 'arbeidslogg']
@@ -97,7 +97,7 @@ function App() {
   const activeKinds = layers.kinds
   const infoEntries = useMemo(() => entries.filter((e) => activeKinds.includes(e.type)
     && (!infoAreas.length || infoAreas.includes(e.area))), [entries, activeKinds, infoAreas])
-  // Grunneiere in the list follow the map's Grunneiere toggle and the area filter
+  // Eiendommer in the list follow the map's Eiendommer toggle and the area filter
   const infoOwners = useMemo(() => (layers.owners
     ? ownerViews.filter((o) => !infoAreas.length || o.hubIds.some((id) => infoAreas.includes(id)))
     : []), [layers.owners, ownerViews, infoAreas])
@@ -187,7 +187,7 @@ function App() {
           areas={areaViews}
           routes={routes}
           entryId={entryId}
-          backLabel={worklogMode ? '← Alle områder' : mode === 'grunneiere' ? '← Alle grunneiere' : '← Tilbake'}
+          backLabel={worklogMode ? '← Alle områder' : mode === 'grunneiere' ? '← Alle eiendommer' : '← Tilbake'}
           onBack={() => selectOwner(null)}
           onToggleEntry={toggleEntry}
           onSelectPoint={worklogMode ? undefined : selectPoint}

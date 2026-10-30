@@ -16,7 +16,7 @@ import {
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
 import {
-  OWNER_COLORS, buildOwnerViews, deleteOwner, deleteParcel, missingOwnerFields, missingParcelFields, ownersForArea, saveOwner, saveParcel,
+  OWNER_COLORS, buildOwnerViews, emptyContact, deleteOwner, deleteParcel, missingOwnerFields, missingParcelFields, ownersForArea, saveOwner, saveParcel,
 } from './models/owners'
 import SiteHeader from './components/worklog/SiteHeader'
 import WorklogMap from './components/worklog/WorklogMap'
@@ -39,7 +39,7 @@ import { RouteEditFooter, RouteEditForm } from './components/worklog/RouteEditPa
 const MODES = [
   { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
   { id: 'ruter', label: 'Turruter', icon: routeIcon },
-  { id: 'grunneiere', label: 'Grunneiere', icon: landPlotIcon },
+  { id: 'grunneiere', label: 'Eiendommer', icon: landPlotIcon },
 ]
 // Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
 const MODE_IDS = ['finnes', 'ruter', 'grunneiere', 'arbeidslogg']
@@ -139,7 +139,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
   const activeKinds = layers.kinds
   const infoEntries = useMemo(() => entries.filter((e) => activeKinds.includes(e.type)
     && (!infoAreas.length || infoAreas.includes(e.area))), [entries, activeKinds, infoAreas])
-  // Grunneiere in the list follow the map's Grunneiere toggle and the area filter
+  // Eiendommer in the list follow the map's Eiendommer toggle and the area filter
   const infoOwners = useMemo(() => (layers.owners
     ? ownerViews.filter((o) => !infoAreas.length || o.hubIds.some((id) => infoAreas.includes(id)))
     : []), [layers.owners, ownerViews, infoAreas])
@@ -279,13 +279,13 @@ export default function AdminApp({ userEmail, onSignOut }) {
     selectOwner(null)
     startEdit('owner', null, {
       name: '', hubIds: areaId ? [areaId] : [], color: OWNER_COLORS[owners.length % OWNER_COLORS.length],
-      contact: '', phone: '', email: '', note: '', dyr: '',
+      contacts: [emptyContact()], note: '', dyr: '',
     })
   }
 
   const editOwner = () => startEdit('owner', owner.id, {
     name: owner.name, hubIds: [...owner.hubIds], color: owner.color,
-    contact: owner.contact, phone: owner.phone, email: owner.email, note: owner.note, dyr: owner.dyr,
+    contacts: owner.contacts.length ? owner.contacts.map((c) => ({ ...c })) : [emptyContact()], note: owner.note, dyr: owner.dyr,
   })
 
   const newParcel = (forOwnerId) => {
@@ -393,12 +393,12 @@ export default function AdminApp({ userEmail, onSignOut }) {
         if (!original) {
           // A brand new owner has no land yet — go straight into drawing their first parcel
           // instead of stopping on their (still empty) detail page.
-          flash('Grunneier opprettet – tegn eiendommen i kartet')
+          flash('Eiendom opprettet – tegn teigen i kartet')
           newParcel(id)
           return
         }
         selectOwner(id)
-        flash('Grunneieren er oppdatert')
+        flash('Eiendommen er oppdatert')
       } else if (edit.kind === 'route') {
         const original = edit.id ? routes.find((r) => r.id === edit.id) : null
         const draft = { ...edit.draft, hub: edit.draft.hub || nearestArea(areas, edit.draft.points[0]) || '' }
@@ -411,7 +411,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await saveParcel(original, edit.draft)
         await refreshOwners()
         selectOwner(edit.draft.ownerId)
-        flash(edit.id ? 'Eiendommen er oppdatert' : 'Ny eiendom opprettet')
+        flash(edit.id ? 'Teigen er oppdatert' : 'Ny teig opprettet')
       }
       cancelEdit()
     } catch (error) {
@@ -444,7 +444,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
       } else if (edit.kind === 'owner') {
         await deleteOwner(owners.find((o) => o.id === edit.id))
         selectOwner(null)
-        flash('Grunneieren er slettet')
+        flash('Eiendommen er slettet')
         await refreshOwners()
       } else if (edit.kind === 'route') {
         await deleteRoute(routes.find((r) => r.id === edit.id))
@@ -453,7 +453,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await refreshRoutes()
       } else {
         await deleteParcel(parcels.find((p) => p.id === edit.id))
-        flash('Eiendommen er slettet')
+        flash('Teigen er slettet')
         await refreshOwners()
       }
       cancelEdit()
@@ -527,7 +527,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
           areas={areaViews}
           routes={routes}
           entryId={entryId}
-          backLabel={worklogMode ? '← Alle områder' : mode === 'grunneiere' ? '← Alle grunneiere' : '← Tilbake'}
+          backLabel={worklogMode ? '← Alle områder' : mode === 'grunneiere' ? '← Alle eiendommer' : '← Tilbake'}
           onBack={() => selectOwner(null)}
           onToggleEntry={toggleEntry}
           onSelectPoint={worklogMode ? undefined : selectPoint}
@@ -744,7 +744,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
               {(mode === 'finnes' || worklogMode) && <button type="button" className="wl-map-btn dark" onClick={newEntry}>+ Nytt punkt</button>}
               {mode === 'ruter' && <button type="button" className="wl-map-btn" onClick={newRoute}>+ Ny turrute</button>}
               {worklogMode && <button type="button" className="wl-map-btn" onClick={newArea}>+ Nytt område</button>}
-              {(worklogMode || mode === 'grunneiere') && <button type="button" className="wl-map-btn" onClick={newOwner}>+ Ny grunneier</button>}
+              {(worklogMode || mode === 'grunneiere') && <button type="button" className="wl-map-btn" onClick={newOwner}>+ Ny eiendom</button>}
             </div>
           )}
 
