@@ -9,8 +9,11 @@ export const TRAIL_COLOR = '#3b3128'
 
 // "Legg til sti" starts on the network: the first click must be this close to it, and is moved onto it
 export const START_SNAP_M = 25
-// Later clicks this close to the network are moved onto it, so a path can end where it rejoins
+// A vertex dragged this close to another part of the network is moved onto it, making a junction
 export const END_SNAP_M = 12
+// The database ties a path end this close to the network onto it, and treats a stretch running within
+// it for 25 m or more as overlap (network_with_line)
+export const JOIN_M = 8
 
 const toParts = (geometry) => {
   if (geometry?.type === 'MultiLineString') return geometry.coordinates.map((line) => line.map(([lng, lat]) => [lat, lng]))
@@ -151,6 +154,6 @@ export const missingNetworkFields = (edit) => {
   if (kind === 'network' && !draft.name.trim()) missing.push('navn')
   if ((kind === 'network-path' || (kind === 'network' && !id)) && (draft.points || []).length < 2) missing.push(PATH_FIELD)
   if (kind === 'network-remove' && draft.part == null) missing.push('bit å fjerne')
-  if (kind === 'network-shape' && !(draft.parts || []).some((p) => p.length >= 2)) missing.push(PATH_FIELD)
+  if (kind === 'network' && id && draft.parts && !draft.parts.some((p) => p.length >= 2)) missing.push(PATH_FIELD)
   return missing
 }

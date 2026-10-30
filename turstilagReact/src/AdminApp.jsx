@@ -17,7 +17,7 @@ import {
 } from './models/worklog'
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import {
-  END_SNAP_M, START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
+  START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
   removePart, saveNetwork, setNetworkGeometry,
 } from './models/networks'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
@@ -95,7 +95,8 @@ const nearestArea = (areas, [lat, lng]) => {
 
 const isOwnerEdit = (edit) => edit?.kind === 'owner' || edit?.kind === 'parcel'
 const isRouteEdit = (edit) => edit?.kind === 'route'
-// 'network' (name etc., plus the first path when new), 'network-path', 'network-shape' and 'network-remove'
+// 'network' (name etc. — plus the first path when new, or its lines to drag when not), 'network-path' and
+// 'network-remove'
 const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
 
 // A network edit draws a path when it adds one: always for 'network-path', and for a new network
@@ -338,23 +339,23 @@ export default function AdminApp({ userEmail, onSignOut }) {
     startEdit('network', null, { name: '', hub: '', desc: '', points: [] }, { placing: true, initialLL: area?.ll || null })
   }
 
-  const editNetwork = (n) => startEdit('network', n.id, { name: n.name, hub: n.hubId || '', desc: n.desc }, { placing: false })
+  const editNetwork = (n) => startEdit('network', n.id, {
+    name: n.name, hub: n.hubId || '', desc: n.desc, parts: n.parts.map((part) => part.map((ll) => [...ll])),
+  }, { placing: false })
 
   const addNetworkPath = (n) => startEdit('network-path', n.id, { points: [] }, { placing: true })
 
   const removeNetworkPart = (n) => startEdit('network-remove', n.id, { part: null }, { placing: false })
 
-  const editNetworkShape = (n) => startEdit('network-shape', n.id, { parts: n.parts.map((part) => part.map((ll) => [...ll])) }, { placing: false })
-
   // "Legg til sti" starts on the network: the first vertex goes onto its nearest line, or nowhere if
-  // the click is too far off. Later vertices close to the network are moved onto it too. Returns
-  // null for a click that should be ignored.
+  // the click is too far off. The rest stay where they are put, so a path can run close to the network
+  // as it leaves it; the database ties an end that stops near the network onto it. Returns null for a
+  // click that should be ignored.
   const snapVertex = useCallback((current, ll, index) => {
-    if (current?.kind !== 'network-path') return ll
+    if (current?.kind !== 'network-path' || index !== 0) return ll
     const target = networks.find((n) => n.id === current.id)
     const near = target && nearestOnNetwork(ll, target.parts)
-    if (index === 0) return near && near.distM <= START_SNAP_M ? near.ll : null
-    return near && near.distM <= END_SNAP_M ? near.ll : ll
+    return near && near.distM <= START_SNAP_M ? near.ll : null
   }, [networks])
 
   const updateDraft = useCallback((patch) => {
@@ -475,6 +476,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
         const draft = { ...edit.draft, hub: edit.draft.hub || (first ? nearestArea(areas, first) : '') || '' }
         const id = await saveNetwork(original, draft)
         if (!original) await addPath(id, edit.draft.points)
+        // Only send the lines back when a vertex was actually moved, so a rename never re-merges them
+        else if (JSON.stringify(edit.draft.parts) !== JSON.stringify(original.parts)) await setNetworkGeometry(id, edit.draft.parts)
         await refreshNetworks()
         selectNetwork(id)
         flash(edit.id ? 'Stinettverket er oppdatert' : 'Nytt stinettverk opprettet')
@@ -483,11 +486,6 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await refreshNetworks()
         selectNetwork(edit.id)
         flash('Stien er lagt til i nettverket')
-      } else if (edit.kind === 'network-shape') {
-        await setNetworkGeometry(edit.id, edit.draft.parts)
-        await refreshNetworks()
-        selectNetwork(edit.id)
-        flash('Linjene er oppdatert')
       } else if (edit.kind === 'network-remove') {
         await removePart(edit.id, edit.draft.part)
         await refreshNetworks()
@@ -655,7 +653,6 @@ export default function AdminApp({ userEmail, onSignOut }) {
             onBack={() => navigate({ mode: 'stinettverk' })}
             onEdit={() => editNetwork(network)}
             onAddPath={() => addNetworkPath(network)}
-            onEditShape={() => editNetworkShape(network)}
             onRemovePart={() => removeNetworkPart(network)}
           />
         )
@@ -901,7 +898,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
                 ? <button type="button" disabled={drawCount < GEOM_MIN[drawGeom]} onClick={finishDrawing}>Fullfør</button>
                 : <button type="button" onClick={restartDrawing}>Tegn på nytt</button>}
             </div>
-          ) : edit?.kind === 'network-shape' ? (
+          ) : edit?.kind === 'network' && edit.id ? (
             <div className="wl-place-banner active">
               <span>Dra punktene for å flytte linjene</span>
             </div>
