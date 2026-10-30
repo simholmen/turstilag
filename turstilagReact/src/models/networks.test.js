@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  insertNetworkVertex, junctionCount, missingNetworkFields, moveNetworkVertex, nearestOnNetwork, networkNodes, partLengthM,
+  DEFAULT_SNAP_M, insertNetworkVertex, junctionCount, readSnapM, missingNetworkFields, moveNetworkVertex, nearestOnNetwork, networkNodes, partLengthM,
 } = await import('./networks')
 
 // A loop with a spur: the loop is one closed part through J, the spur another part from J outwards,
@@ -78,6 +78,17 @@ describe('dragging vertices', () => {
     // Dragged to 3 m beside the middle of J -> K, which doesn't contain the spur's end
     const parts = moveNetworkVertex([spur, [[58.775, 5.84], [58.775, 5.86]]], end, [58.77503, 5.85])
     expect(parts[0][1]).toEqual([58.775, 5.85])
+  })
+
+  it('snaps nothing with festeavstand 0', () => {
+    const end = spur[1]
+    const to = [58.77503, 5.85]
+    const parts = moveNetworkVertex([spur, [[58.775, 5.84], [58.775, 5.86]]], end, to, 0)
+    expect(parts[0][1]).toBe(to)
+  })
+
+  it('falls back to the default festeavstand without storage', () => {
+    expect(readSnapM()).toBe(DEFAULT_SNAP_M)
   })
 
   it('inserts a vertex into one part only', () => {

@@ -7,13 +7,32 @@ import { distanceM, pointsToLineGeometry } from './geometry'
 // three or more parts end.
 export const TRAIL_COLOR = '#3b3128'
 
-// "Legg til sti" starts on the network: the first click must be this close to it, and is moved onto it
+// "Legg til sti" starts on the network: the first click must be this close to it, and is moved onto it,
+// whatever the festeavstand
 export const START_SNAP_M = 25
-// A vertex dragged this close to another part of the network is moved onto it, making a junction
-export const END_SNAP_M = 12
-// The database ties a path end this close to the network onto it, and treats a stretch running within
-// it for 25 m or more as overlap (network_with_line)
-export const JOIN_M = 8
+
+// The festeavstand (snap distance), set by the admin with a slider and remembered per browser. A vertex
+// dragged this close to another part of the network is moved onto it, and the database joins path ends,
+// merges overlap and tidies small bits by it (network_with_line, network_tidy). 0 snaps nothing.
+export const DEFAULT_SNAP_M = 8
+export const MAX_SNAP_M = 20
+const SNAP_KEY = 'stinettverk-festeavstand'
+
+const clampSnap = (m) => Math.min(MAX_SNAP_M, Math.max(0, Math.round(m)))
+
+// Storage can be unavailable (private windows, iframes); the default is used then
+export const readSnapM = () => {
+  try {
+    const saved = localStorage.getItem(SNAP_KEY)
+    return saved === null || Number.isNaN(Number(saved)) ? DEFAULT_SNAP_M : clampSnap(Number(saved))
+  } catch {
+    return DEFAULT_SNAP_M
+  }
+}
+
+export const storeSnapM = (m) => {
+  try { localStorage.setItem(SNAP_KEY, String(clampSnap(m))) } catch { /* not remembered */ }
+}
 
 const toParts = (geometry) => {
   if (geometry?.type === 'MultiLineString') return geometry.coordinates.map((line) => line.map(([lng, lat]) => [lat, lng]))
@@ -103,19 +122,21 @@ export const saveNetwork = async (original, draft) => {
 }
 
 // The database trims what overlaps the network and ties the loose ends onto it (add_trail_to_network)
-export const addPath = async (networkId, points) => {
+export const addPath = async (networkId, points, snapM = DEFAULT_SNAP_M) => {
   const { error } = await supabase.rpc('add_trail_to_network', {
     network_id: Number(networkId),
     line_geojson: pointsToLineGeometry(points),
+    snap_m: snapM,
   })
   if (error) throw error
 }
 
 // Saves dragged lines. The database re-joins them, so a vertex dragged onto another line becomes a junction.
-export const setNetworkGeometry = async (networkId, parts) => {
+export const setNetworkGeometry = async (networkId, parts, snapM = DEFAULT_SNAP_M) => {
   const { error } = await supabase.rpc('set_network_geometry', {
     network_id: Number(networkId),
     lines_geojson: { type: 'MultiLineString', coordinates: parts.map((part) => part.map(([lat, lng]) => [lng, lat])) },
+    snap_m: snapM,
   })
   if (error) throw error
 }
@@ -123,11 +144,11 @@ export const setNetworkGeometry = async (networkId, parts) => {
 const sameLL = (a, b) => a[0] === b[0] && a[1] === b[1]
 
 // Moves every occurrence of `from` — a junction is the same coordinate in each part that meets there —
-// to `to`, or onto another part of the network if `to` lands within END_SNAP_M of one
-export const moveNetworkVertex = (parts, from, to) => {
+// to `to`, or onto another part of the network if `to` lands within snapM of one
+export const moveNetworkVertex = (parts, from, to, snapM = DEFAULT_SNAP_M) => {
   const others = parts.filter((part) => !part.some((ll) => sameLL(ll, from)))
   const near = nearestOnNetwork(to, others)
-  const target = near && near.distM <= END_SNAP_M ? near.ll : to
+  const target = near && near.distM <= snapM ? near.ll : to
   return parts.map((part) => part.map((ll) => (sameLL(ll, from) ? target : ll)))
 }
 
@@ -136,8 +157,8 @@ export const insertNetworkVertex = (parts, partIndex, index, ll) => parts.map((p
 ))
 
 // `index` is the part's position in network.parts
-export const removePart = async (networkId, index) => {
-  const { error } = await supabase.rpc('remove_network_part', { network_id: Number(networkId), part: index + 1 })
+export const removePart = async (networkId, index, snapM = DEFAULT_SNAP_M) => {
+  const { error } = await supabase.rpc('remove_network_part', { network_id: Number(networkId), part: index + 1, snap_m: snapM })
   if (error) throw error
 }
 
