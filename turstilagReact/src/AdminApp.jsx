@@ -17,7 +17,8 @@ import {
 } from './models/worklog'
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import {
-  END_SNAP_M, START_SNAP_M, addPath, deleteNetwork, missingNetworkFields, nearestOnNetwork, removePart, saveNetwork,
+  END_SNAP_M, START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
+  removePart, saveNetwork, setNetworkGeometry,
 } from './models/networks'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
 import {
@@ -94,7 +95,7 @@ const nearestArea = (areas, [lat, lng]) => {
 
 const isOwnerEdit = (edit) => edit?.kind === 'owner' || edit?.kind === 'parcel'
 const isRouteEdit = (edit) => edit?.kind === 'route'
-// 'network' (name etc., plus the first path when new), 'network-path' and 'network-remove'
+// 'network' (name etc., plus the first path when new), 'network-path', 'network-shape' and 'network-remove'
 const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
 
 // A network edit draws a path when it adds one: always for 'network-path', and for a new network
@@ -343,6 +344,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
   const removeNetworkPart = (n) => startEdit('network-remove', n.id, { part: null }, { placing: false })
 
+  const editNetworkShape = (n) => startEdit('network-shape', n.id, { parts: n.parts.map((part) => part.map((ll) => [...ll])) }, { placing: false })
+
   // "Legg til sti" starts on the network: the first vertex goes onto its nearest line, or nowhere if
   // the click is too far off. Later vertices close to the network are moved onto it too. Returns
   // null for a click that should be ignored.
@@ -359,6 +362,14 @@ export default function AdminApp({ userEmail, onSignOut }) {
   }, [])
 
   const handlePartClick = useCallback((part) => updateDraft({ part }), [updateDraft])
+
+  const handleNetworkVertexMove = useCallback((from, to) => {
+    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: moveNetworkVertex(prev.draft.parts, from, to) } })
+  }, [])
+
+  const handleNetworkVertexInsert = useCallback((partIndex, index, ll) => {
+    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: insertNetworkVertex(prev.draft.parts, partIndex, index, ll) } })
+  }, [])
 
   const handlePlace = useCallback((ll) => {
     const vertex = accumulatesPoints(edit) ? snapVertex(edit, ll, edit.draft.points.length) : ll
@@ -472,6 +483,11 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await refreshNetworks()
         selectNetwork(edit.id)
         flash('Stien er lagt til i nettverket')
+      } else if (edit.kind === 'network-shape') {
+        await setNetworkGeometry(edit.id, edit.draft.parts)
+        await refreshNetworks()
+        selectNetwork(edit.id)
+        flash('Linjene er oppdatert')
       } else if (edit.kind === 'network-remove') {
         await removePart(edit.id, edit.draft.part)
         await refreshNetworks()
@@ -639,6 +655,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
             onBack={() => navigate({ mode: 'stinettverk' })}
             onEdit={() => editNetwork(network)}
             onAddPath={() => addNetworkPath(network)}
+            onEditShape={() => editNetworkShape(network)}
             onRemovePart={() => removeNetworkPart(network)}
           />
         )
@@ -829,6 +846,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onRouteClick={selectRoute}
           onNetworkClick={selectNetwork}
           onPartClick={handlePartClick}
+          onNetworkVertexMove={handleNetworkVertexMove}
+          onNetworkVertexInsert={handleNetworkVertexInsert}
           onPlace={handlePlace}
           onDraftMove={handleDraftMove}
           onDraftVertexMove={handleDraftVertexMove}
@@ -881,6 +900,10 @@ export default function AdminApp({ userEmail, onSignOut }) {
               {placing
                 ? <button type="button" disabled={drawCount < GEOM_MIN[drawGeom]} onClick={finishDrawing}>Fullfør</button>
                 : <button type="button" onClick={restartDrawing}>Tegn på nytt</button>}
+            </div>
+          ) : edit?.kind === 'network-shape' ? (
+            <div className="wl-place-banner active">
+              <span>Dra punktene for å flytte linjene</span>
             </div>
           ) : edit?.kind === 'network-remove' ? (
             <div className="wl-place-banner active">

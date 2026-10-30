@@ -108,6 +108,30 @@ export const addPath = async (networkId, points) => {
   if (error) throw error
 }
 
+// Saves dragged lines. The database re-joins them, so a vertex dragged onto another line becomes a junction.
+export const setNetworkGeometry = async (networkId, parts) => {
+  const { error } = await supabase.rpc('set_network_geometry', {
+    network_id: Number(networkId),
+    lines_geojson: { type: 'MultiLineString', coordinates: parts.map((part) => part.map(([lat, lng]) => [lng, lat])) },
+  })
+  if (error) throw error
+}
+
+const sameLL = (a, b) => a[0] === b[0] && a[1] === b[1]
+
+// Moves every occurrence of `from` — a junction is the same coordinate in each part that meets there —
+// to `to`, or onto another part of the network if `to` lands within END_SNAP_M of one
+export const moveNetworkVertex = (parts, from, to) => {
+  const others = parts.filter((part) => !part.some((ll) => sameLL(ll, from)))
+  const near = nearestOnNetwork(to, others)
+  const target = near && near.distM <= END_SNAP_M ? near.ll : to
+  return parts.map((part) => part.map((ll) => (sameLL(ll, from) ? target : ll)))
+}
+
+export const insertNetworkVertex = (parts, partIndex, index, ll) => parts.map((part, i) => (
+  i === partIndex ? [...part.slice(0, index), ll, ...part.slice(index)] : part
+))
+
 // `index` is the part's position in network.parts
 export const removePart = async (networkId, index) => {
   const { error } = await supabase.rpc('remove_network_part', { network_id: Number(networkId), part: index + 1 })
@@ -127,5 +151,6 @@ export const missingNetworkFields = (edit) => {
   if (kind === 'network' && !draft.name.trim()) missing.push('navn')
   if ((kind === 'network-path' || (kind === 'network' && !id)) && (draft.points || []).length < 2) missing.push(PATH_FIELD)
   if (kind === 'network-remove' && draft.part == null) missing.push('bit å fjerne')
+  if (kind === 'network-shape' && !(draft.parts || []).some((p) => p.length >= 2)) missing.push(PATH_FIELD)
   return missing
 }

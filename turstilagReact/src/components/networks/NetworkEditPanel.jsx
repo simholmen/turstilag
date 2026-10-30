@@ -5,11 +5,12 @@ import GeometryDrawField from '../worklog/GeometryDrawField'
 const HEADINGS = {
   'network-path': 'Legg til sti',
   'network-remove': 'Fjern en bit',
+  'network-shape': 'Rediger linjene',
 }
 
-// Scrollable form body for the three network edits: 'network' (name, turområde, description — and
-// the first path when new), 'network-path' (a path added from the network outwards) and
-// 'network-remove' (one part picked in the map). `network` is the one being changed, if any.
+// Scrollable form body for the network edits: 'network' (name, turområde, description — and the first
+// path when new), 'network-path' (a path added from the network outwards), 'network-shape' (its
+// vertices dragged in the map) and 'network-remove' (one part picked in the map). `network` is the one being changed, if any.
 export function NetworkEditForm({ edit, network, areas, placing, tried, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw }) {
   const { kind, draft } = edit
   const set = (key) => (event) => onChange({ [key]: event.target.value })
@@ -69,6 +70,14 @@ export function NetworkEditForm({ edit, network, areas, placing, tried, onCancel
                 : `Trykk først på en sti i nettverket, og tegn videre derfra. Punkter innen ${END_SNAP_M} m fra nettverket festes til det, og der den nye stien går langs nettverket, blir de til én linje.`}
             </span>
           </>
+        )}
+
+        {kind === 'network-shape' && (
+          <p className="wl-hint">
+            Dra punktene i kartet for å flytte linjene. Et kryss flyttes for alle stiene som møtes der. Dra de små
+            punktene midt på en strekning for å lage et nytt knekkpunkt. Slipper du et punkt innen {END_SNAP_M} m fra en
+            annen sti i nettverket, festes det dit og blir et kryss.
+          </p>
         )}
 
         {kind === 'network-remove' && (
