@@ -37,7 +37,7 @@ export function EditForm({
   const [pendingType, setPendingType] = useState(null)
   const geomType = isEntry && draft.type ? entryGeomType(draft) : 'point'
   const geoms = isEntry && draft.type ? draftGeoms(draft) : []
-  // Still the old point or area of a stiforbedring that should be drawn as a line
+  // Still the old geometry of an entry whose kind now takes another (see needsRedraw)
   const oldGeom = isEntry && draft.oldGeom?.type === draft.type && geoms.includes(draft.oldGeom.geomType) ? draft.oldGeom.geomType : null
   const subtypes = isEntry ? validSubtypes(draft.type, draft.subtypes) : []
   const multi = isEntry && isMultiSubtype(draft.type)
@@ -179,7 +179,7 @@ export function EditForm({
                 </div>
                 {oldGeom && (
                   <span className="wl-hint">
-                    Stiforbedringer tegnes nå som linje. Denne er registrert som {GEOM_NOUNS[oldGeom]} – tegn strekningen på nytt, eller behold {oldGeom === 'point' ? 'punktet' : 'flaten'} inntil videre.
+                    {TYPES[draft.type].plural} tegnes nå som {GEOM_LABELS[geoms[0]].toLowerCase()}. Denne er registrert som {GEOM_NOUNS[oldGeom]} – tegn {geoms[0] === 'line' ? 'strekningen' : 'omrisset'} på nytt, eller behold {oldGeom === 'point' ? 'punktet' : 'flaten'} inntil videre.
                   </span>
                 )}
               </div>

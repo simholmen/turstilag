@@ -99,11 +99,11 @@ export const subtypesLabel = (kind, subtypes, other) => (subtypes || [])
 export const entrySubtypeLabel = (entry) => subtypesLabel(entry.type, entry.subtypes, entry.subtypeOther)
 
 // Which geometry each kind may have, the first being what a new one starts with. The database
-// (other_points_geom_kind_chk) still accepts a point for every kind, since older stiforbedringer
-// were registered as points before they became line-only.
+// (other_points_geom_kind_chk) still accepts a point for every kind, since older stiforbedringer and
+// parkeringer were registered as points before they became line- and area-only.
 export const GEOM_BY_KIND = {
   stiforbedring: ['line'],
-  parkering: ['poly', 'point'],
+  parkering: ['poly'],
   annet: ['point', 'line', 'poly'],
   // gjerdeklyver, turinfo, benk, stikryss fall through to the default
 }
@@ -116,8 +116,8 @@ export const allowedGeoms = (kind) => GEOM_BY_KIND[kind] || DEFAULT_GEOM
 
 export const defaultGeom = (kind) => allowedGeoms(kind)[0]
 
-// An older entry whose geometry its kind no longer allows, i.e. a stiforbedring that is still a
-// point or an area. It keeps that geometry until someone draws it as a line.
+// An older entry whose geometry its kind no longer allows: a stiforbedring that is still a point or an
+// area, or a parkering that is still a point. It keeps that geometry until someone redraws it.
 export const needsRedraw = (entry) => !allowedGeoms(entry.type).includes(entry.geomType)
 
 // The geometries the form offers: the kind's own, plus the old one while editing an entry that
