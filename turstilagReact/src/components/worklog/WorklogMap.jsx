@@ -5,7 +5,7 @@ import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
-import { TRAIL_COLOR, networkNodes } from '../../models/trails'
+import { TRAIL_COLOR, networkNodes } from '../../models/networks'
 import { snapLineToStretches } from '../../models/geometry'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -101,8 +101,8 @@ const addGeometry = (group, entry, options) => {
 }
 
 function Markers({
-  mode, areas, entries, parcels, owners, routes, trails, layers, areaId, entryId, ownerId, routeId, trailId, filter, edit, drawGeom, placing,
-  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onTrailClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape,
+  mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing,
+  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape,
 }) {
   const map = useMap()
   const groupRef = useRef(null)
@@ -182,30 +182,39 @@ function Markers({
     })
 
     // The stinettverk beneath the routes: dark paths on a white casing, and in Stinettverk (or while
-    // drawing a segment) its nodes — dead ends small and hollow, junctions solid
-    const editingTrail = edit?.kind === 'trail'
-    if (layers.trails || editingTrail) {
-      const shownTrails = trails.filter((t) => !(editingTrail && edit.id === t.id))
-      shownTrails.forEach((t) => {
-        const selected = trailId === t.id
-        const faded = (trailId && !selected) || (Boolean(edit) && !editingTrail)
-        const casing = L.polyline(t.latLngs, { color: '#fff', weight: selected ? 9 : 6, opacity: faded ? 0.5 : 0.9, interactive })
-        const line = L.polyline(t.latLngs, { color: TRAIL_COLOR, weight: selected ? 5 : 3, opacity: faded ? 0.45 : 1, interactive })
-        if (interactive) {
-          casing.on('click', () => onTrailClick?.(t.id))
-          line.on('click', () => onTrailClick?.(t.id))
-        }
-        casing.addTo(group)
-        line.addTo(group)
-      })
-      if (mode === 'stinettverk' || editingTrail) {
-        networkNodes(shownTrails).forEach((n) => {
-          const junction = n.degree >= 3
-          L.circleMarker(n.ll, {
-            radius: junction ? 5 : 3.5, color: TRAIL_COLOR, weight: 2, fillColor: junction ? TRAIL_COLOR : '#fff', fillOpacity: 1, interactive: false,
-          }).addTo(group)
+    // one is being edited) its nodes — dead ends small and hollow, junctions solid. While picking a bit
+    // to remove, each part of that network takes the click and the chosen one turns red.
+    const editedNetworkId = edit?.kind?.startsWith('network') ? edit.id : null
+    const removing = edit?.kind === 'network-remove'
+    if (layers.trails || edit?.kind?.startsWith('network')) {
+      networks.forEach((n) => {
+        const own = editedNetworkId === n.id
+        const selected = own || (!edit && networkId === n.id)
+        const faded = edit ? !own : Boolean(networkId) && !selected
+        n.parts.forEach((part, i) => {
+          const picked = own && removing && edit.draft.part === i
+          const clickable = interactive || (own && removing)
+          const onClick = own && removing ? () => onPartClick?.(i) : () => onNetworkClick?.(n.id)
+          const casing = L.polyline(part, { color: '#fff', weight: selected ? 9 : 6, opacity: faded ? 0.5 : 0.9, interactive: clickable })
+          const line = L.polyline(part, {
+            color: picked ? '#c8242b' : TRAIL_COLOR, weight: picked ? 6 : selected ? 5 : 3, opacity: faded ? 0.45 : 1, interactive: clickable,
+          })
+          if (clickable) {
+            casing.on('click', onClick)
+            line.on('click', onClick)
+          }
+          casing.addTo(group)
+          line.addTo(group)
         })
-      }
+        if (mode === 'stinettverk' || own) {
+          networkNodes(n.parts).forEach((node) => {
+            const junction = node.degree >= 3
+            L.circleMarker(node.ll, {
+              radius: junction ? 5 : 3.5, color: TRAIL_COLOR, weight: 2, fillColor: junction ? TRAIL_COLOR : '#fff', fillOpacity: faded ? 0.5 : 1, opacity: faded ? 0.5 : 1, interactive: false,
+            }).addTo(group)
+          })
+        }
+      })
     }
 
     if (layers.routes) {
@@ -337,7 +346,7 @@ function Markers({
         }
       }
     }
-  }, [mode, areas, entries, parcels, owners, routes, trails, layers, areaId, entryId, ownerId, routeId, trailId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onTrailClick, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape])
+  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape])
 
   return null
 }
@@ -370,12 +379,12 @@ function Viewport({ view, isMobile }) {
 
 // `mode` is 'arbeidslogg' (area pins with counts, circular markers — also the admin view), or one of
 // the sign-symbol modes: 'finnes', 'ruter' (route lines, and what lies along the selected route) and
-// 'grunneiere' (parcels) and 'stinettverk' (trail segments and their nodes). In those, square markers are
+// 'grunneiere' (parcels) and 'stinettverk' (trail networks and their nodes). In those, square markers are
 // drawn for the kinds in `layers.kinds`. `drawGeom` is set while an edit is being drawn vertex by vertex.
 export default function WorklogMap({
-  mode = 'arbeidslogg', areas, entries, parcels = [], owners = [], routes = [], trails = [], layers = { kinds: [], work: true, owners: true, routes: false },
-  areaId, entryId, ownerId, routeId, trailId, filter, edit, drawGeom, placing, version, isMobile, geo,
-  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onTrailClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, children,
+  mode = 'arbeidslogg', areas, entries, parcels = [], owners = [], routes = [], networks = [], layers = { kinds: [], work: true, owners: true, routes: false },
+  areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, version, isMobile, geo,
+  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, children,
 }) {
   const view = useMemo(() => {
     if (edit) {
@@ -400,8 +409,8 @@ export default function WorklogMap({
     const route = routeId && routes.find((r) => r.id === routeId)
     if (route) return { key: `route:${routeId}`, fit: route.latLngs }
 
-    const trail = trailId && trails.find((t) => t.id === trailId)
-    if (trail) return { key: `trail:${trailId}`, fit: trail.latLngs }
+    const network = networkId && networks.find((n) => n.id === networkId)
+    if (network?.parts.length) return { key: `network:${networkId}`, fit: network.parts.flat() }
 
     const owner = ownerId && owners.find((o) => o.id === ownerId)
     if (owner) {
@@ -413,7 +422,7 @@ export default function WorklogMap({
       return { key: `fit:finnes:${version}`, fit: entries.map((e) => e.ll) }
     }
     if (mode === 'stinettverk') {
-      return { key: `fit:stinettverk:${version}:${trails.length}`, fit: trails.flatMap((t) => t.latLngs) }
+      return { key: `fit:stinettverk:${version}:${networks.length}`, fit: networks.flatMap((n) => n.parts.flat()) }
     }
     if (mode === 'ruter') {
       return { key: `fit:ruter:${version}:${routes.length}`, fit: routes.flatMap((r) => r.latLngs) }
@@ -430,7 +439,7 @@ export default function WorklogMap({
         ...(layers.owners ? parcels.flatMap((p) => p.latLngRings.flat()) : []),
       ]
     return { key: `fit:${areaId ?? 'all'}:${version}:${layers.work}:${layers.owners}`, fit }
-  }, [mode, edit, drawGeom, entryId, entries, routeId, routes, trailId, trails, areaId, areas, ownerId, owners, parcels, layers, version])
+  }, [mode, edit, drawGeom, entryId, entries, routeId, routes, networkId, networks, areaId, areas, ownerId, owners, parcels, layers, version])
 
   const [map, setMap] = useState(null)
   const [baseLayer, setBaseLayer] = useState(readLayer)
@@ -456,11 +465,12 @@ export default function WorklogMap({
           mode={mode}
           routes={routes}
           routeId={routeId}
-          trails={trails}
-          trailId={trailId}
+          networks={networks}
+          networkId={networkId}
           drawGeom={drawGeom}
           onRouteClick={onRouteClick}
-          onTrailClick={onTrailClick}
+          onNetworkClick={onNetworkClick}
+          onPartClick={onPartClick}
           onCloseShape={onCloseShape}
           areas={areas}
           entries={entries}
