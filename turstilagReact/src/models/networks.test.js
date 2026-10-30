@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  junctionCount, missingNetworkFields, nearestOnNetwork, networkNodes, partLengthM,
+  insertNetworkVertex, junctionCount, missingNetworkFields, moveNetworkVertex, nearestOnNetwork, networkNodes, partLengthM,
 } = await import('./networks')
 
 // A loop with a spur: the loop is one closed part through J, the spur another part from J outwards,
@@ -61,5 +61,32 @@ describe('missing fields', () => {
     expect(missingNetworkFields({ kind: 'network-path', id: '1', draft: { points: [J] } })).toHaveLength(1)
     expect(missingNetworkFields({ kind: 'network-remove', id: '1', draft: { part: null } })).toEqual(['bit å fjerne'])
     expect(missingNetworkFields({ kind: 'network-remove', id: '1', draft: { part: 0 } })).toEqual([])
+  })
+})
+
+describe('dragging vertices', () => {
+  it('moves a junction in every part that meets there', () => {
+    const to = [58.7701, 5.8501]
+    const parts = moveNetworkVertex([loop, spur, branch], J, to)
+    expect(parts.every((part) => part.some((ll) => ll === to))).toBe(true)
+    expect(parts[0][0]).toBe(to)
+    expect(parts[0][3]).toBe(to)
+  })
+
+  it('snaps a dragged dead end onto another part of the network', () => {
+    const end = spur[1]
+    // Dragged to 3 m beside the middle of J -> K, which doesn't contain the spur's end
+    const parts = moveNetworkVertex([spur, [[58.775, 5.84], [58.775, 5.86]]], end, [58.77503, 5.85])
+    expect(parts[0][1]).toEqual([58.775, 5.85])
+  })
+
+  it('inserts a vertex into one part only', () => {
+    const parts = insertNetworkVertex([spur, branch], 1, 1, [58.771, 5.851])
+    expect(parts[0]).toBe(spur)
+    expect(parts[1]).toEqual([J, [58.771, 5.851], K])
+  })
+
+  it('needs at least one line to save', () => {
+    expect(missingNetworkFields({ kind: 'network-shape', id: '1', draft: { parts: [branch] } })).toEqual([])
   })
 })

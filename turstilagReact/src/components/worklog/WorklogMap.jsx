@@ -76,6 +76,7 @@ const areaIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: 
 const entryIcon = (html, size) => L.divIcon({ className: 'wl-divicon', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
 const vertexIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: [22, 22], iconAnchor: [11, 11] })
 const midpointIcon = () => L.divIcon({ className: 'wl-divicon', html: midpointHtml(), iconSize: [14, 14], iconAnchor: [7, 7] })
+const netVertexIcon = () => L.divIcon({ className: 'wl-divicon', html: '<div class="wl-net-vertex"></div>', iconSize: [14, 14], iconAnchor: [7, 7] })
 
 // Linear entries drawn over route lines, as the stack of styles from stretchStyle. Every layer takes
 // the click, so the wide casing is part of the target.
@@ -102,7 +103,8 @@ const addGeometry = (group, entry, options) => {
 
 function Markers({
   mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing,
-  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape,
+  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert,
+  onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape,
 }) {
   const map = useMap()
   const groupRef = useRef(null)
@@ -186,12 +188,15 @@ function Markers({
     // to remove, each part of that network takes the click and the chosen one turns red.
     const editedNetworkId = edit?.kind?.startsWith('network') ? edit.id : null
     const removing = edit?.kind === 'network-remove'
+    const shaping = edit?.kind === 'network-shape'
     if (layers.trails || edit?.kind?.startsWith('network')) {
       networks.forEach((n) => {
         const own = editedNetworkId === n.id
         const selected = own || (!edit && networkId === n.id)
         const faded = edit ? !own : Boolean(networkId) && !selected
-        n.parts.forEach((part, i) => {
+        // While its lines are being dragged, the network is drawn from the draft
+        const parts = own && shaping ? edit.draft.parts : n.parts
+        parts.forEach((part, i) => {
           const picked = own && removing && edit.draft.part === i
           const clickable = interactive || (own && removing)
           const onClick = own && removing ? () => onPartClick?.(i) : () => onNetworkClick?.(n.id)
@@ -207,12 +212,38 @@ function Markers({
           line.addTo(group)
         })
         if (mode === 'stinettverk' || own) {
-          networkNodes(n.parts).forEach((node) => {
+          networkNodes(parts).forEach((node) => {
             const junction = node.degree >= 3
             L.circleMarker(node.ll, {
               radius: junction ? 5 : 3.5, color: TRAIL_COLOR, weight: 2, fillColor: junction ? TRAIL_COLOR : '#fff', fillOpacity: faded ? 0.5 : 1, opacity: faded ? 0.5 : 1, interactive: false,
             }).addTo(group)
           })
+        }
+      })
+    }
+
+    // Every vertex of the network being reshaped is a handle — one per coordinate, so dragging a junction
+    // moves all the parts that meet there — plus a midpoint on each stretch for adding a vertex
+    if (shaping) {
+      const vertices = new Map()
+      edit.draft.parts.forEach((part) => part.forEach((ll) => vertices.set(`${ll[0]},${ll[1]}`, ll)))
+      vertices.forEach((ll) => {
+        const marker = L.marker(ll, { icon: netVertexIcon(), draggable: true, zIndexOffset: 3000 })
+        marker.on('dragend', () => {
+          const p = marker.getLatLng()
+          onNetworkVertexMove(ll, [round(p.lat), round(p.lng)])
+        })
+        marker.addTo(group)
+      })
+      edit.draft.parts.forEach((part, i) => {
+        for (let j = 1; j < part.length; j += 1) {
+          const mid = [(part[j - 1][0] + part[j][0]) / 2, (part[j - 1][1] + part[j][1]) / 2]
+          const marker = L.marker(mid, { icon: midpointIcon(), draggable: true, zIndexOffset: 2800 })
+          marker.on('dragend', () => {
+            const p = marker.getLatLng()
+            onNetworkVertexInsert(i, j, [round(p.lat), round(p.lng)])
+          })
+          marker.addTo(group)
         }
       })
     }
@@ -346,7 +377,7 @@ function Markers({
         }
       }
     }
-  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape])
+  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape])
 
   return null
 }
@@ -384,7 +415,8 @@ function Viewport({ view, isMobile }) {
 export default function WorklogMap({
   mode = 'arbeidslogg', areas, entries, parcels = [], owners = [], routes = [], networks = [], layers = { kinds: [], work: true, owners: true, routes: false },
   areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, version, isMobile, geo,
-  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, children,
+  onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert,
+  onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, children,
 }) {
   const view = useMemo(() => {
     if (edit) {
@@ -471,6 +503,8 @@ export default function WorklogMap({
           onRouteClick={onRouteClick}
           onNetworkClick={onNetworkClick}
           onPartClick={onPartClick}
+          onNetworkVertexMove={onNetworkVertexMove}
+          onNetworkVertexInsert={onNetworkVertexInsert}
           onCloseShape={onCloseShape}
           areas={areas}
           entries={entries}

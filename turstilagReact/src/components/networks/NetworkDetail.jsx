@@ -6,7 +6,7 @@ const Icon = ({ html }) => <span className="wl-ico" dangerouslySetInnerHTML={{ _
 
 // One stinettverk. It has no start, end or length, so the facts are where it is and how it branches.
 // The edit actions are admin-only.
-export default function NetworkDetail({ network, areas, onBack, onEdit, onAddPath, onRemovePart }) {
+export default function NetworkDetail({ network, areas, onBack, onEdit, onAddPath, onEditShape, onRemovePart }) {
   const area = areas.find((a) => a.id === network.hubId)
   const nodes = networkNodes(network.parts)
 
@@ -41,7 +41,10 @@ export default function NetworkDetail({ network, areas, onBack, onEdit, onAddPat
         <div className="wl-pad wl-network-actions">
           <button type="button" className="wl-dashed-btn" onClick={onAddPath}>+ Legg til sti</button>
           {network.parts.length > 0 && (
-            <button type="button" className="wl-link-btn" onClick={onRemovePart}>Fjern en bit av nettverket</button>
+            <>
+              <button type="button" className="wl-link-btn" onClick={onEditShape}>Rediger linjene</button>
+              <button type="button" className="wl-link-btn" onClick={onRemovePart}>Fjern en bit av nettverket</button>
+            </>
           )}
         </div>
       )}

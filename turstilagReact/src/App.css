@@ -1038,6 +1038,16 @@ textarea {
   opacity: 1;
 }
 
+/* A draggable vertex of a stinettverk being reshaped */
+.wl-net-vertex {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+}
+
 .wl-map-overlay-left {
   position: absolute;
   top: 12px;
