@@ -48,11 +48,11 @@ export default function RouteList({ routes, difficulty, onDifficulty, onSelect, 
               <span className="wl-area-name">{route.title}</span>
               <span className="wl-mono">{DIFFICULTY[route.difficulty].label} · {SHAPES[route.shape]} · {fmtTime(route.km, route.climb)}</span>
               <div className="wl-route-badges">
-                <span className="wl-route-badge" title="Kryssningspunkter" style={{ background: TYPES.gjerdeklyver.color }}>
+                <span className="wl-route-badge" title="Krysningspunkter" style={{ background: TYPES.gjerdeklyver.color }}>
                   <Icon html={TYPES.gjerdeklyver.icon} />{route.gjerdeCount}
                 </span>
-                <span className="wl-route-badge" title="Tilrettelegginger" style={{ background: TYPES.tilrettelegging.color }}>
-                  <Icon html={TYPES.tilrettelegging.icon} />{route.tilretteCount}
+                <span className="wl-route-badge" title="Stiforbedringer" style={{ background: TYPES.stiforbedring.color }}>
+                  <Icon html={TYPES.stiforbedring.icon} />{route.stiforbedringCount}
                 </span>
               </div>
             </div>

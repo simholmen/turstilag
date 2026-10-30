@@ -14,7 +14,7 @@ export default function AlongStrip({ route, along }) {
     <div className="wl-along">
       <div className="wl-along-head">
         <span className="wl-label">Langs ruta</span>
-        <span className="wl-mono">{plural(passes, 'kryssningspunkt', 'kryssningspunkter')} · {facilitated} m tilrettelagt</span>
+        <span className="wl-mono">{plural(passes, 'krysningspunkt', 'krysningspunkter')} · {facilitated} m stiforbedring</span>
       </div>
       <div className="wl-along-scroll">
         <div className="wl-along-track">

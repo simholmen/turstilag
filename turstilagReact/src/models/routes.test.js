@@ -52,7 +52,7 @@ describe('along the route', () => {
     km: 3,
     shape: 'rundtur',
     features: [
-      { key: 'other_points:1', kind: 'tilrettelegging', subtypes: ['klopp'], title: 'Klopp', km: 1, kmFra: 0.9, kmTil: 1.05, lengthM: 150 },
+      { key: 'other_points:1', kind: 'stiforbedring', subtypes: ['klopp'], title: 'Klopp', km: 1, kmFra: 0.9, kmTil: 1.05, lengthM: 150 },
       { key: 'gjerdeklyvere:2', kind: 'gjerdeklyver', subtypes: ['hundeluke', 'annen'], subtypeOther: 'Grind', title: 'Klyver', km: 2, kmFra: null, kmTil: null },
       { key: 'gjerdeklyvere:3', kind: 'gjerdeklyver', subtypes: [], title: 'Ved start', km: 2.99, kmFra: null, kmTil: null },
     ],
