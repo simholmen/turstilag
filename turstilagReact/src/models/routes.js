@@ -22,6 +22,39 @@ export const BRIDGE_COLOR = TYPES.stiforbedring.color
 export const PLANK_BG = `repeating-linear-gradient(90deg,${BRIDGE_COLOR} 0 3px,#fff 3px 5px)`
 export const spanBg = (subtypes) => (subtypes?.includes('bru') ? BRIDGE_COLOR : PLANK_BG)
 
+// How a linear entry is drawn: a stack of polyline styles, bottom first. Turruter keeps to the simple
+// bru/planks pair above, read while walking; Hva finnes and the admin views get one look per
+// stiforbedring subtype, loosely after the real thing. The legend draws the same stacks as SVG.
+const PLANKS = [{ color: '#fff', weight: 8 }, { color: BRIDGE_COLOR, weight: 6, dashArray: '3 2' }]
+const BRIDGE = [{ color: BRIDGE_COLOR, weight: 7 }]
+
+export const STRETCH_STYLES = {
+  bru: BRIDGE,
+  klopp: PLANKS,
+  // Rungs across a thin line
+  trapp: [{ color: '#fff', weight: 9 }, { color: BRIDGE_COLOR, weight: 3 }, { color: '#3b3128', weight: 9, dashArray: '2 4' }],
+  // A row of round links beside the path
+  kjetting: [{ color: '#fff', weight: 7 }, { color: '#3b3f44', weight: 2 }, { color: '#3b3f44', weight: 5, dashArray: '0.1 7', lineCap: 'round' }],
+  // Grey stones with dark joints
+  naturstein: [{ color: '#6f6a62', weight: 9 }, { color: '#bdb7ab', weight: 6, dashArray: '6 3' }],
+  // Short blue pipes across the path
+  stikkror: [{ color: '#fff', weight: 7 }, { color: BRIDGE_COLOR, weight: 2 }, { color: '#3a7ca5', weight: 11, dashArray: '3 7' }],
+  // Speckled beige
+  grus: [{ color: '#8f7a52', weight: 9 }, { color: '#d2bf93', weight: 6 }, { color: '#8f7a52', weight: 2, dashArray: '0.1 5', lineCap: 'round' }],
+  // Broken warm brown chips
+  treflis: [{ color: '#5b3a1a', weight: 9 }, { color: '#a8743f', weight: 6, dashArray: '4 2' }],
+  // Smooth pale grey
+  steinstov: [{ color: '#8c8a85', weight: 9 }, { color: '#dcd9d2', weight: 6 }],
+}
+
+// `detailed` picks the per-subtype look. A line of another kind (annet) is drawn in its kind colour.
+export const stretchStyle = (kind, subtypes, detailed) => {
+  if (kind !== 'stiforbedring') return [{ color: '#fff', weight: 7 }, { color: (TYPES[kind] || TYPES.annet).color, weight: 4 }]
+  const bridge = subtypes?.includes('bru')
+  if (!detailed) return bridge ? BRIDGE : PLANKS
+  return STRETCH_STYLES[subtypes?.[0]] || PLANKS
+}
+
 // A start and end this close on a rundtur are the same spot
 const LOOP_SNAP_KM = 0.02
 

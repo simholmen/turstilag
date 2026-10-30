@@ -98,30 +98,34 @@ export const subtypesLabel = (kind, subtypes, other) => (subtypes || [])
 
 export const entrySubtypeLabel = (entry) => subtypesLabel(entry.type, entry.subtypes, entry.subtypeOther)
 
-// Which geometry each kind may have. Enforced in the database (other_points_geom_kind_chk).
+// Which geometry each kind may have, the first being what a new one starts with. The database
+// (other_points_geom_kind_chk) still accepts a point for every kind, since older stiforbedringer
+// were registered as points before they became line-only.
 export const GEOM_BY_KIND = {
-  stiforbedring: ['point', 'line', 'poly'],
+  stiforbedring: ['line'],
+  parkering: ['poly', 'point'],
   annet: ['point', 'line', 'poly'],
-  // gjerdeklyver, turinfo, benk, parkering, stikryss fall through to the default
+  // gjerdeklyver, turinfo, benk, stikryss fall through to the default
 }
 export const DEFAULT_GEOM = ['point']
-
-// Preselected drawing tool, overridable in the form. Not a constraint: a bru can be either.
-export const DEFAULT_GEOM_BY_SUBTYPE = {
-  klopp: 'line', kjetting: 'line', stikkror: 'line', grus: 'line', treflis: 'line', steinstov: 'line',
-  naturstein: 'poly',
-  bru: 'point', trapp: 'point',
-}
 
 export const GEOM_LABELS = { point: 'Punkt', line: 'Linje', poly: 'Flate' }
 export const GEOM_MIN = { point: 1, line: 2, poly: 3 }
 
 export const allowedGeoms = (kind) => GEOM_BY_KIND[kind] || DEFAULT_GEOM
 
-export const defaultGeom = (kind, subtype) => {
-  const allowed = allowedGeoms(kind)
-  const preferred = DEFAULT_GEOM_BY_SUBTYPE[subtype]
-  return preferred && allowed.includes(preferred) ? preferred : allowed[0]
+export const defaultGeom = (kind) => allowedGeoms(kind)[0]
+
+// An older entry whose geometry its kind no longer allows, i.e. a stiforbedring that is still a
+// point or an area. It keeps that geometry until someone draws it as a line.
+export const needsRedraw = (entry) => !allowedGeoms(entry.type).includes(entry.geomType)
+
+// The geometries the form offers: the kind's own, plus the old one while editing an entry that
+// needsRedraw, so it can be saved without redrawing it. `oldGeom` is { type, geomType }.
+export const draftGeoms = (draft) => {
+  const allowed = allowedGeoms(draft.type)
+  const old = draft.oldGeom
+  return old && old.type === draft.type && !allowed.includes(old.geomType) ? [...allowed, old.geomType] : allowed
 }
 
 const GEOM_TYPES = { POINT: 'point', LINESTRING: 'line', POLYGON: 'poly' }
@@ -302,8 +306,11 @@ export const deleteArea = async (area) => {
   await cleanupImages(area.images)
 }
 
-// Point-only kinds always save a point, whatever the draft carried
-export const entryGeomType = (draft) => (allowedGeoms(draft.type).includes(draft.geomType) ? draft.geomType : 'point')
+// A geometry the kind doesn't allow falls back to its default, e.g. point-only kinds always save a point
+export const entryGeomType = (draft) => {
+  const geoms = draftGeoms(draft)
+  return geoms.includes(draft.geomType) ? draft.geomType : geoms[0]
+}
 
 export const entryGeometry = (draft) => {
   const geomType = entryGeomType(draft)

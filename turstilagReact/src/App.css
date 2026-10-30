@@ -333,6 +333,17 @@ textarea {
   color: var(--danger);
 }
 
+.wl-redraw {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wl-redraw .wl-chip {
+  flex: none;
+}
+
 .wl-empty {
   margin: 16px 8px;
   font-size: 14px;
@@ -2650,9 +2661,9 @@ textarea.wl-input {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(27, 38, 32, 0.12);
 }
 
-.wl-legend-line.plank {
-  height: 7px;
-  border-radius: 1px;
+.wl-legend-swatch {
+  flex: none;
+  display: block;
 }
 
 .wl-status-dot {

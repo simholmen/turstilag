@@ -1,9 +1,27 @@
 import { useState } from 'react'
-import { TYPES } from '../../models/worklog'
-import { BRIDGE_COLOR, DIFFICULTY, PLANK_BG } from '../../models/routes'
+import { SUBTYPES, TYPES } from '../../models/worklog'
+import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import KindSquare from '../info/KindSquare'
 import OwnerSymbol from './OwnerSymbol'
 import TypeDot from './TypeDot'
+
+// A short piece of line drawn with the same style stack as on the map
+function StretchSwatch({ subtypes, detailed }) {
+  return (
+    <svg className="wl-legend-swatch" width="28" height="12" viewBox="0 0 28 12" aria-hidden="true">
+      {stretchStyle('stiforbedring', subtypes, detailed).map((s, i) => (
+        <line
+          key={i}
+          x1="0" y1="6" x2="28" y2="6"
+          stroke={s.color}
+          strokeWidth={s.weight}
+          strokeDasharray={s.dashArray}
+          strokeLinecap={s.lineCap || 'butt'}
+        />
+      ))}
+    </svg>
+  )
+}
 
 // `usedTypes` decides whether the fallback "Annet" type is listed. Grunneiere get one row with the
 // shared symbol rather than one per owner — each owner's colour is on the map itself. `mode` switches
@@ -16,6 +34,8 @@ export function LegendRows({ usedTypes, layers, hasOwners = false, mode = 'arbei
   const types = shownKinds.filter((t) => t !== 'annet' || usedTypes.has('annet'))
   const showRoutes = layers.routes || mode === 'ruter'
   const showOwners = layers.owners && hasOwners
+  // Hva finnes tells the stiforbedring subtypes apart; Turruter only bru and the rest
+  const detailedStretches = mode === 'finnes' && layers.kinds.includes('stiforbedring')
 
   return (
     <>
@@ -37,10 +57,19 @@ export function LegendRows({ usedTypes, layers, hasOwners = false, mode = 'arbei
               <span className="wl-legend-line" style={{ background: d.color }} />{d.label} rute
             </div>
           ))}
-          <div className="wl-legend-row wl-legend-area"><span className="wl-legend-line plank" style={{ background: PLANK_BG }} />Klopp</div>
-          <div className="wl-legend-row"><span className="wl-legend-line plank" style={{ background: BRIDGE_COLOR }} />Bru</div>
+          {!detailedStretches && (
+            <>
+              <div className="wl-legend-row wl-legend-area"><StretchSwatch subtypes={[]} />Stiforbedring</div>
+              <div className="wl-legend-row"><StretchSwatch subtypes={['bru']} />Bru</div>
+            </>
+          )}
         </>
       )}
+      {detailedStretches && Object.entries(SUBTYPES.stiforbedring).map(([key, sub], i) => (
+        <div key={key} className={`wl-legend-row ${i === 0 && (types.length || showOwners || showRoutes) ? 'wl-legend-area' : ''}`}>
+          <StretchSwatch subtypes={[key]} detailed />{sub.label}
+        </div>
+      ))}
     </>
   )
 }

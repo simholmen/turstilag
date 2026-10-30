@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  TYPES, allowedGeoms, defaultGeom, entryGeometry, entryType, fmtArea, fmtDist, fmtKm, groupEntriesByType,
+  TYPES, allowedGeoms, defaultGeom, draftGeoms, entryGeomType, entryGeometry, entryType, fmtArea, fmtDist, fmtKm, groupEntriesByType,
   hasSubtypes, missingFields, rowToEntry, sortEntriesByDistance, subtypeAbout, subtypeLabel, subtypesLabel, validSubtype,
-  validSubtypes,
+  validSubtypes, needsRedraw,
 } = await import('./worklog')
 const { toLatLngs } = await import('./geometry')
 
@@ -69,17 +69,32 @@ describe('taxonomy', () => {
 })
 
 describe('geometry per kind', () => {
-  it('allows lines and areas only for stiforbedring and annet', () => {
-    expect(allowedGeoms('stiforbedring')).toHaveLength(3)
+  it('allows each kind its own geometries', () => {
+    expect(allowedGeoms('stiforbedring')).toEqual(['line'])
+    expect(allowedGeoms('parkering')).toEqual(['poly', 'point'])
     expect(allowedGeoms('annet')).toHaveLength(3)
     expect(allowedGeoms('benk')).toEqual(['point'])
   })
 
-  it('preselects a tool from the subtype', () => {
-    expect(defaultGeom('stiforbedring', 'klopp')).toBe('line')
-    expect(defaultGeom('stiforbedring', 'trapp')).toBe('point')
-    expect(defaultGeom('stiforbedring', 'naturstein')).toBe('poly')
-    expect(defaultGeom('benk', 'klopp')).toBe('point')
+  it('starts a new entry with the first allowed geometry', () => {
+    expect(defaultGeom('stiforbedring')).toBe('line')
+    expect(defaultGeom('parkering')).toBe('poly')
+    expect(defaultGeom('benk')).toBe('point')
+  })
+
+  it('flags old stiforbedring points and areas for redrawing', () => {
+    expect(needsRedraw({ type: 'stiforbedring', geomType: 'point' })).toBe(true)
+    expect(needsRedraw({ type: 'stiforbedring', geomType: 'poly' })).toBe(true)
+    expect(needsRedraw({ type: 'stiforbedring', geomType: 'line' })).toBe(false)
+    expect(needsRedraw({ type: 'parkering', geomType: 'point' })).toBe(false)
+  })
+
+  it('keeps an old geometry only while the kind is unchanged', () => {
+    const draft = { type: 'stiforbedring', geomType: 'point', oldGeom: { type: 'stiforbedring', geomType: 'point' } }
+    expect(draftGeoms(draft)).toEqual(['line', 'point'])
+    expect(entryGeomType(draft)).toBe('point')
+    expect(entryGeomType({ ...draft, oldGeom: null })).toBe('line')
+    expect(draftGeoms({ ...draft, type: 'turinfo' })).toEqual(['point'])
   })
 
   it('builds an open line and a closed polygon', () => {
@@ -88,7 +103,7 @@ describe('geometry per kind', () => {
     expect(line.type).toBe('LineString')
     expect(line.coordinates).toHaveLength(3)
     expect(line.coordinates[0]).toEqual([5.85, 58.77])
-    const poly = entryGeometry({ type: 'stiforbedring', geomType: 'poly', points })
+    const poly = entryGeometry({ type: 'annet', geomType: 'poly', points })
     expect(poly.type).toBe('Polygon')
     expect(poly.coordinates[0]).toHaveLength(4)
     expect(poly.coordinates[0][3]).toEqual(poly.coordinates[0][0])

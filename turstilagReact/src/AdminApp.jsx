@@ -11,7 +11,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
 import { useGeolocation } from './hooks/useGeolocation'
 import {
-  GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, saveArea, saveEntry,
+  GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, needsRedraw, saveArea, saveEntry,
 } from './models/worklog'
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
@@ -255,6 +255,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
       area: entry.area, type: entry.type, subtypes: [...entry.subtypes], subtypeOther: entry.subtypeOther, hund: entry.hund, plasser: entry.plasser,
       title: entry.title, date: entry.date || '', desc: entry.desc, images: [...entry.images], ll: entry.ll,
       geomType: entry.geomType, geomChosen: true, points: toDraftPoints(entry),
+      oldGeom: needsRedraw(entry) ? { type: entry.type, geomType: entry.geomType } : null,
     })
   }
 
@@ -569,6 +570,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onRequestLocation={geo.requestLocation}
           onSelect={selectPoint}
           onSelectOwner={selectOwner}
+          showRedraw
         />
       )
     }
