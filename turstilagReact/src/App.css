@@ -1592,6 +1592,11 @@ textarea {
   margin-top: 16px;
 }
 
+.wl-range {
+  width: 100%;
+  accent-color: var(--green);
+}
+
 /* Contact persons in the eiendom detail */
 .wl-contact {
   margin: 14px var(--pad) 0;

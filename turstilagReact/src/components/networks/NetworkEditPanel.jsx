@@ -1,4 +1,4 @@
-import { END_SNAP_M, JOIN_M, missingNetworkFields, partLengthM } from '../../models/networks'
+import { MAX_SNAP_M, missingNetworkFields, partLengthM } from '../../models/networks'
 import { fmtDist } from '../../models/worklog'
 import GeometryDrawField from '../worklog/GeometryDrawField'
 
@@ -10,7 +10,10 @@ const HEADINGS = {
 // Scrollable form body for the network edits: 'network' (name, turområde, description — plus the first
 // path when new, or its vertices dragged in the map when not), 'network-path' (a path added from the
 // network outwards) and 'network-remove' (one part picked in the map). `network` is the one being changed, if any.
-export function NetworkEditForm({ edit, network, areas, placing, tried, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw }) {
+// `snapM` is the festeavstand, changed with the slider shown whenever lines are drawn or dragged.
+export function NetworkEditForm({
+  edit, network, areas, placing, tried, snapM, onSnapM, onCancel, onChange, onStartDraw, onUndoPoint, onFinishDraw,
+}) {
   const { kind, draft } = edit
   const set = (key) => (event) => onChange({ [key]: event.target.value })
   const areaOptions = [...areas].sort((a, b) => a.name.localeCompare(b.name, 'nb'))
@@ -66,7 +69,7 @@ export function NetworkEditForm({ edit, network, areas, placing, tried, onCancel
             <span className="wl-hint">
               {kind === 'network'
                 ? 'Tegn en sti; en rundtur kan ende der den startet. Flere stier legger du til etterpå med «Legg til sti».'
-                : `Trykk først på en sti i nettverket, og tegn videre derfra. Bare startpunktet festes til nettverket. Slutter stien innen ${JOIN_M} m fra nettverket, kobles den til, og der den går langs nettverket i mer enn 25 m, blir de til én linje.`}
+                : `Trykk først på en sti i nettverket, og tegn videre derfra. Bare startpunktet festes til nettverket. Slutter stien innen festeavstanden fra nettverket, kobles den til, og der den går tett langs nettverket, blir de til én linje.`}
             </span>
           </>
         )}
@@ -76,9 +79,29 @@ export function NetworkEditForm({ edit, network, areas, placing, tried, onCancel
             <span className="wl-label">Linjene</span>
             <br />
             Dra punktene i kartet for å flytte linjene. Et kryss flyttes for alle stiene som møtes der. Dra de små
-            punktene midt på en strekning for å lage et nytt knekkpunkt. Slipper du et punkt innen {END_SNAP_M} m fra en
+            punktene midt på en strekning for å lage et nytt knekkpunkt. Slipper du et punkt innen festeavstanden fra en
             annen sti i nettverket, festes det dit og blir et kryss.
           </p>
+        )}
+
+        {(kind === 'network-path' || kind === 'network') && (
+          <label className="wl-field">
+            <span className="wl-label">Festeavstand: {snapM} m</span>
+            <input
+              type="range"
+              className="wl-range"
+              min={0}
+              max={MAX_SNAP_M}
+              step={1}
+              value={snapM}
+              onChange={(event) => onSnapM(Number(event.target.value))}
+            />
+            <span className="wl-hint">
+              {snapM === 0
+                ? 'Ingenting festes eller slås sammen; linjene får bare kryss der de faktisk krysser.'
+                : `Punkter og ender innen ${snapM} m fra en annen sti festes til den, og linjer som går tett langs hverandre blir til én. Sett den lavt der stiene ligger tett.`}
+            </span>
+          </label>
         )}
 
         {kind === 'network-remove' && (

@@ -18,7 +18,7 @@ import {
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
 import {
   START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
-  removePart, saveNetwork, setNetworkGeometry,
+  readSnapM, removePart, saveNetwork, setNetworkGeometry, storeSnapM,
 } from './models/networks'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
 import {
@@ -139,6 +139,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
   const [uploading, setUploading] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [toast, setToast] = useState(null)
+  const [snapM, setSnapM] = useState(readSnapM)
   const scrollRef = useRef(null)
   const toastTimer = useRef(null)
 
@@ -365,8 +366,13 @@ export default function AdminApp({ userEmail, onSignOut }) {
   const handlePartClick = useCallback((part) => updateDraft({ part }), [updateDraft])
 
   const handleNetworkVertexMove = useCallback((from, to) => {
-    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: moveNetworkVertex(prev.draft.parts, from, to) } })
-  }, [])
+    setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: moveNetworkVertex(prev.draft.parts, from, to, snapM) } })
+  }, [snapM])
+
+  const changeSnapM = (m) => {
+    setSnapM(m)
+    storeSnapM(m)
+  }
 
   const handleNetworkVertexInsert = useCallback((partIndex, index, ll) => {
     setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, parts: insertNetworkVertex(prev.draft.parts, partIndex, index, ll) } })
@@ -475,19 +481,19 @@ export default function AdminApp({ userEmail, onSignOut }) {
         const first = edit.draft.points?.[0]
         const draft = { ...edit.draft, hub: edit.draft.hub || (first ? nearestArea(areas, first) : '') || '' }
         const id = await saveNetwork(original, draft)
-        if (!original) await addPath(id, edit.draft.points)
+        if (!original) await addPath(id, edit.draft.points, snapM)
         // Only send the lines back when a vertex was actually moved, so a rename never re-merges them
-        else if (JSON.stringify(edit.draft.parts) !== JSON.stringify(original.parts)) await setNetworkGeometry(id, edit.draft.parts)
+        else if (JSON.stringify(edit.draft.parts) !== JSON.stringify(original.parts)) await setNetworkGeometry(id, edit.draft.parts, snapM)
         await refreshNetworks()
         selectNetwork(id)
         flash(edit.id ? 'Stinettverket er oppdatert' : 'Nytt stinettverk opprettet')
       } else if (edit.kind === 'network-path') {
-        await addPath(edit.id, edit.draft.points)
+        await addPath(edit.id, edit.draft.points, snapM)
         await refreshNetworks()
         selectNetwork(edit.id)
         flash('Stien er lagt til i nettverket')
       } else if (edit.kind === 'network-remove') {
-        await removePart(edit.id, edit.draft.part)
+        await removePart(edit.id, edit.draft.part, snapM)
         await refreshNetworks()
         selectNetwork(edit.id)
         flash('Biten er fjernet')
@@ -583,6 +589,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
           edit={edit}
           network={networks.find((n) => n.id === edit.id)}
           areas={areas}
+          snapM={snapM}
+          onSnapM={changeSnapM}
           placing={placing}
           tried={tried}
           onCancel={cancelEdit}
