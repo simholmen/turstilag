@@ -62,7 +62,7 @@ const squareHtml = (type, size, selected, faded) => {
     </div>`
 }
 
-// Parcel label: the grunneier symbol in the owner's colour, then their name
+// Parcel label: the eiendom symbol in the owner's colour, then their name
 const ownerLabelHtml = (name, color, hi, faded) => `
   <div class="wl-owner-pin ${hi ? 'hi' : ''}" style="opacity:${!hi && faded ? 0.7 : 1}">
     <span class="wl-owner-swatch ${hi ? 'hi' : ''}" style="background:${color}"><span class="wl-ico">${OWNER_ICON}</span></span>${escapeHtml(name)}

@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import { byDateDesc } from './worklog'
 import landPlot from 'lucide-static/icons/land-plot.svg?raw'
 
-// The one grunneier symbol, used on the map, in the legend, the list and the layer chip
+// The one eiendom symbol, used on the map, in the legend, the list and the layer chip
 export const OWNER_ICON = landPlot.slice(landPlot.indexOf('<svg'))
 
 // Owner colors default to a small rotation so new owners are visually distinct on the map
@@ -53,15 +53,27 @@ const pointInRing = ([x, y], ring) => {
 
 export const pointInGeometry = (lngLat, geometry) => ringsOf(geometry).some((ring) => pointInRing(lngLat, ring))
 
+// An eiendom has up to three contact persons — grunneier, forpakter, dyreeier, or whoever looks after
+// it. Every field is free text; a contact with nothing filled in isn't saved.
+export const MAX_CONTACTS = 3
+const CONTACT_FIELDS = ['name', 'role', 'phone', 'email']
+
+export const emptyContact = () => ({ name: '', role: '', phone: '', email: '' })
+
+const toContact = (c) => Object.fromEntries(CONTACT_FIELDS.map((f) => [f, typeof c?.[f] === 'string' ? c[f] : '']))
+
+export const cleanContacts = (contacts) => (contacts || [])
+  .map((c) => Object.fromEntries(CONTACT_FIELDS.map((f) => [f, (c[f] || '').trim()])))
+  .filter((c) => CONTACT_FIELDS.some((f) => c[f]))
+  .slice(0, MAX_CONTACTS)
+
 const rowToOwner = (row, hubIds = []) => ({
   id: String(row.id),
   name: row.name,
   hubIds,
   color: row.color,
   fill: withAlpha(row.color),
-  contact: row.contact_name || '',
-  phone: row.phone || '',
-  email: row.email || '',
+  contacts: (Array.isArray(row.contacts) ? row.contacts : []).map(toContact),
   note: row.note || '',
   dyr: row.dyr || '',
 })
@@ -103,7 +115,7 @@ export const loadOwnersAndParcels = async () => {
   }
 }
 
-// Owners belonging to a given turområde, for the area detail's "Grunneiere" section —
+// Owners belonging to a given turområde, for the area detail's "Eiendommer" section —
 // each with their parcels and combined daa.
 export const ownersForArea = (owners, parcels, areaId) => owners
   .filter((owner) => owner.hubIds.includes(areaId))
@@ -139,9 +151,7 @@ export const saveOwner = async (original, draft) => {
   const payload = {
     name: draft.name.trim(),
     color: draft.color,
-    contact_name: draft.contact.trim() || null,
-    phone: draft.phone.trim() || null,
-    email: draft.email.trim() || null,
+    contacts: cleanContacts(draft.contacts),
     note: draft.note.trim() || null,
     dyr: draft.dyr?.trim() || null,
   }
@@ -200,7 +210,7 @@ export const missingOwnerFields = (draft) => (draft.name.trim() ? [] : ['navn'])
 
 export const missingParcelFields = (draft) => {
   const missing = []
-  if (!draft.ownerId) missing.push('grunneier')
-  if (!draft.points || draft.points.length < 3) missing.push('eiendomsgrense (minst 3 punkter)')
+  if (!draft.ownerId) missing.push('eiendom')
+  if (!draft.points || draft.points.length < 3) missing.push('teiggrense (minst 3 punkter)')
   return missing
 }
