@@ -1,12 +1,24 @@
-import { LINE_COLORS, LINE_KINDS, TRAIL_COLOR } from '../../models/networks'
+import { LINE_COLORS, LINE_KINDS, TRAIL_COLOR, lineLayers } from '../../models/networks'
 
-// A short piece of line in a stinettverk style, for the picker and the legend
+// A short piece of line in a stinettverk style, for the picker and the legend — drawn like the map does
 export function LineSwatch({ color, kind, width = 34 }) {
   const stroke = LINE_COLORS[color]?.color || TRAIL_COLOR
+  const { halo, line } = lineLayers(kind)
+  // Inset by the halo's round cap so the ends aren't clipped
+  const x1 = halo.weight / 2
+  const x2 = width - halo.weight / 2
   return (
     <svg className="wl-legend-swatch" width={width} height="12" viewBox={`0 0 ${width} 12`} aria-hidden="true">
-      <line x1="0" y1="6" x2={width} y2="6" stroke="#fff" strokeWidth="7" />
-      <line x1="0" y1="6" x2={width} y2="6" stroke={stroke} strokeWidth="4" strokeDasharray={LINE_KINDS[kind]?.dash || undefined} />
+      {[[halo, '#fff'], [line, stroke]].map(([layer, colour]) => (
+        <line
+          key={colour}
+          x1={x1} y1="6" x2={x2} y2="6"
+          stroke={colour}
+          strokeWidth={layer.weight}
+          strokeDasharray={layer.dashArray || undefined}
+          strokeLinecap={layer.lineCap}
+        />
+      ))}
     </svg>
   )
 }

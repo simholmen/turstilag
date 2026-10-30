@@ -14,12 +14,25 @@ export const LINE_COLORS = {
   bla: { label: 'Blå', color: '#1f63b4' },
   morkebla: { label: 'Mørkeblå', color: '#1b2a5c' },
 }
+// Like a topographic map: a vei solid, a turvei in long dashes and a tursti in short ones. Dashes have
+// square ends so they read as strokes, not dots.
 export const LINE_KINDS = {
-  vei: { label: 'Merket vei', dash: null },
-  turvei: { label: 'Turvei', dash: '12 7' },
-  tursti: { label: 'Merket tursti', dash: '4 5' },
+  vei: { label: 'Merket vei', dash: null, weight: 4, cap: 'round' },
+  turvei: { label: 'Turvei', dash: '14 7', weight: 3.5, cap: 'butt' },
+  tursti: { label: 'Merket tursti', dash: '7 5', weight: 3.5, cap: 'butt' },
 }
 export const DEFAULT_STYLE = { color: 'rod', kind: 'tursti' }
+
+// How a line type is drawn, bottom first: a white halo, then the line in its colour, both in the same
+// pattern so each dash gets an edge of its own instead of lying on a white band. The map and
+// LineSwatch both draw from this. `extra` thickens a selected network.
+export const lineLayers = (kind, extra = 0) => {
+  const { dash, weight, cap } = LINE_KINDS[kind] || LINE_KINDS[DEFAULT_STYLE.kind]
+  return {
+    halo: { weight: weight + 3 + extra, dashArray: dash, lineCap: cap, lineJoin: 'round' },
+    line: { weight: weight + extra, dashArray: dash, lineCap: cap, lineJoin: 'round' },
+  }
+}
 
 // "Legg til sti" starts on the network: the first click must be this close to it, and is moved onto it,
 // whatever the festeavstand
@@ -94,7 +107,7 @@ export const loadNetworks = async () => {
   return (data || []).map(rowToNetwork)
 }
 
-const nodeKey = ([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`
+export const nodeKey = ([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`
 
 // Every part end, with how many parts end there: 1 is a dead end, 3 or more a junction (kryss). A part
 // that closes on itself counts twice at its one node, as a loop should.
