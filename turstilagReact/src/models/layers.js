@@ -4,10 +4,10 @@ export const ALL_KINDS = Object.keys(TYPES)
 
 // What the map draws, per mode; toggles are remembered per mode for the session. `kinds` are the
 // point kinds shown — in Hva finnes the same list drives the sidebar's kind chips. In Turruter the
-// points along the selected route are drawn whatever `kinds` says. Stinettverk starts with what you
-// need to find your way: the paths, where they cross, and the gates and stiles on them.
+// points along the selected route are drawn whatever `kinds` says. Stinettverk starts with the paths
+// alone; points can be toggled on.
 export const DEFAULT_LAYERS = {
-  stinettverk: { kinds: ['gjerdeklyver', 'stikryss'], owners: false, routes: false, trails: true, work: false },
+  stinettverk: { kinds: [], owners: false, routes: false, trails: true, work: false },
   finnes: { kinds: ALL_KINDS, owners: true, routes: false, trails: false, work: false },
   ruter: { kinds: [], owners: false, routes: true, trails: false, work: false },
   grunneiere: { kinds: [], owners: true, routes: false, trails: false, work: false },
