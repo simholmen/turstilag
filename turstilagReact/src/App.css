@@ -1532,6 +1532,28 @@ textarea {
   right: 10px;
 }
 
+/* Stinettverk */
+.wl-trail-row {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  min-height: 48px;
+}
+
+.wl-trail-swatch {
+  flex: none;
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(27, 38, 32, 0.12);
+}
+
+.wl-legend-node {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 6px;
+  border-radius: 50%;
+}
+
 /* Contact persons in the eiendom detail */
 .wl-contact {
   margin: 14px var(--pad) 0;
@@ -2728,6 +2750,7 @@ textarea.wl-input {
 /* === Mobile layouts for Hva finnes / Turruter (Arbeidslogg keeps its own rules above) === */
 
 @media (max-width: 819px) {
+  .wl-mode-stinettverk .wl-map,
   .wl-mode-finnes .wl-map,
   .wl-mode-ruter .wl-map,
   .wl-mode-grunneiere .wl-map {

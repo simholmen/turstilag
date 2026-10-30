@@ -7,6 +7,7 @@ import landPlotIcon from 'lucide-static/icons/land-plot.svg?raw'
 import { useWorklog } from './hooks/useWorklog'
 import { useOwners } from './hooks/useOwners'
 import { useRoutes } from './hooks/useRoutes'
+import { useTrails } from './hooks/useTrails'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useSheetDrag } from './hooks/useSheetDrag'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
@@ -28,16 +29,19 @@ import InfoList from './components/info/InfoList'
 import PointDetail from './components/info/PointDetail'
 import RouteList from './components/routes/RouteList'
 import RouteDetail from './components/routes/RouteDetail'
+import TrailList from './components/trails/TrailList'
+import TrailDetail from './components/trails/TrailDetail'
 
 const MODES = [
   { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
   { id: 'ruter', label: 'Turruter', icon: routeIcon },
   { id: 'grunneiere', label: 'Eiendommer', icon: landPlotIcon },
 ]
-// Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
-const MODE_IDS = ['finnes', 'ruter', 'grunneiere', 'arbeidslogg']
+// Arbeidslogg (?modus=arbeidslogg) and, until it gets its tab, Stinettverk (?modus=stinettverk) are
+// reachable but not among the primary tabs
+const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
 
-// Mode and the selected point/route live in the URL so they survive reloads and Back works
+// Mode and the selected point/route/trail live in the URL so they survive reloads and Back works
 const readUrl = () => {
   const q = new URLSearchParams(window.location.search)
   const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : 'finnes'
@@ -45,13 +49,15 @@ const readUrl = () => {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,
     route: mode === 'ruter' ? q.get('rute') : null,
+    trail: mode === 'stinettverk' ? q.get('sti') : null,
   }
 }
 
-const buildSearch = ({ mode, point, route }) => {
+const buildSearch = ({ mode, point, route, trail }) => {
   const q = new URLSearchParams({ modus: mode })
   if (point) q.set('punkt', point)
   if (route) q.set('rute', route)
+  if (trail) q.set('sti', trail)
   return `?${q.toString()}`
 }
 
@@ -60,6 +66,7 @@ function App() {
   const { areas, entries, loading, error, version } = useWorklog()
   const { owners, parcels, loading: ownersLoading } = useOwners()
   const { routes } = useRoutes()
+  const { trails } = useTrails()
   const isMobile = useIsMobile()
   const geo = useGeolocation()
   const { width: sidebarWidth, dragging: resizing, startResize } = useSidebarWidth()
@@ -106,11 +113,12 @@ function App() {
 
   const point = mode === 'finnes' ? entries.find((e) => e.key === nav.point) : null
   const route = mode === 'ruter' ? routes.find((r) => r.id === nav.route) : null
+  const trail = mode === 'stinettverk' ? trails.find((t) => t.id === nav.trail) : null
   const shownRoutes = difficulty ? routes.filter((r) => r.difficulty === difficulty) : routes
 
   const navigate = useCallback((patch) => {
     setNav((prev) => {
-      const next = { ...prev, point: null, route: null, ...patch }
+      const next = { ...prev, point: null, route: null, trail: null, ...patch }
       const search = buildSearch(next)
       if (search !== window.location.search) window.history.pushState(null, '', search)
       return next
@@ -158,6 +166,11 @@ function App() {
     navigate({ mode: 'ruter', route: id })
   }, [navigate])
 
+  const selectTrail = useCallback((id) => {
+    setOwnerId(null)
+    navigate({ mode: 'stinettverk', trail: id })
+  }, [navigate])
+
   const toggleEntry = useCallback((key) => setEntryId((prev) => (prev === key ? null : key)), [])
   const toggleLayer = useCallback((key) => setLayersByMode((prev) => ({ ...prev, [mode]: { ...prev[mode], [key]: !prev[mode][key] } })), [mode])
 
@@ -169,9 +182,9 @@ function App() {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [areaId, ownerId, mode, nav.point, nav.route])
+  }, [areaId, ownerId, mode, nav.point, nav.route, nav.trail])
 
-  const selectionKey = [mode, areaId, ownerId, entryId, nav.point, nav.route].join('|')
+  const selectionKey = [mode, areaId, ownerId, entryId, nav.point, nav.route, nav.trail].join('|')
   const panelCollapsed = collapsedAt === selectionKey
   const { mapH: sheetMapH, handleProps: sheetHandleProps } = useSheetDrag({
     bodyRef,
@@ -228,6 +241,21 @@ function App() {
           onSelectOwner={selectOwner}
         />
       )
+    }
+
+    if (mode === 'stinettverk') {
+      if (trail) {
+        return (
+          <TrailDetail
+            trail={trail}
+            trails={trails}
+            areas={areas}
+            onBack={() => navigate({ mode: 'stinettverk' })}
+            onSelect={selectTrail}
+          />
+        )
+      }
+      return <TrailList trails={trails} areas={areas} onSelect={selectTrail} />
     }
 
     if (mode === 'ruter') {
@@ -315,11 +343,13 @@ function App() {
           parcels={parcels}
           owners={ownerViews}
           routes={mode === 'ruter' ? shownRoutes : routes}
+          trails={trails}
           layers={layers}
           areaId={areaId}
           entryId={worklogMode ? entryId : nav.point}
           ownerId={ownerId}
           routeId={nav.route}
+          trailId={nav.trail}
           filter={filter}
           version={version}
           isMobile={isMobile}
@@ -328,6 +358,7 @@ function App() {
           onEntryClick={onMapEntryClick}
           onOwnerClick={selectOwner}
           onRouteClick={selectRoute}
+          onTrailClick={selectTrail}
         >
           {isMobile ? (
             <MapFilterMenu
