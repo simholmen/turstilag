@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { imageUrl } from '../../lib/images'
-import { entrySubtypeLabel, fmtDist, groupEntriesByType, needsRedraw, sortEntriesByDistance } from '../../models/worklog'
+import { TYPES, entrySubtypeLabel, fmtDist, groupEntriesByType, needsRedraw, sortEntriesByDistance } from '../../models/worklog'
 import KindSquare from './KindSquare'
 import OwnerSymbol from '../worklog/OwnerSymbol'
 import { OwnerRow } from '../worklog/OwnerList'
@@ -45,15 +45,20 @@ export function PointRow({ entry, areaName, dist, onSelect }) {
 
 // "Hva finnes": every point, grouped by kind (each group collapsible) or sorted by distance, then the
 // grunneiere as their own collapsible group. `entries` and `owners` are already filtered by area and
-// by what is toggled on in the map. `showRedraw` (admin) adds a filter for the stiforbedringer that are
-// still points or areas and should be drawn as lines.
+// by what is toggled on in the map. `showRedraw` (admin) adds a filter for the entries still in a geometry
+// their kind no longer takes: stiforbedringer to redraw as lines, parkeringer as areas.
 export default function InfoList({
   entries: allEntries, owners: allOwners = [], areas, sort, onSort, userLocation, geoError, onRequestLocation, onSelect, onSelectOwner,
   showRedraw = false,
 }) {
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [onlyRedraw, setOnlyRedraw] = useState(false)
-  const redrawCount = showRedraw ? allEntries.filter(needsRedraw).length : 0
+  const redrawGroups = showRedraw ? groupEntriesByType(allEntries.filter(needsRedraw)) : []
+  const redrawCount = redrawGroups.reduce((sum, g) => sum + g.entries.length, 0)
+  // "48 stiforbedringer og 1 parkering"
+  const redrawText = redrawGroups
+    .map((g) => `${g.entries.length} ${(g.entries.length === 1 ? TYPES[g.key].label : g.plural).toLowerCase()}`)
+    .join(' og ')
   const redrawing = onlyRedraw && redrawCount > 0
   const entries = redrawing ? allEntries.filter(needsRedraw) : allEntries
   const owners = redrawing ? [] : allOwners
@@ -99,7 +104,7 @@ export default function InfoList({
       {redrawCount > 0 && (
         <div className="wl-pad wl-redraw">
           <span className="wl-hint">
-            {redrawCount} {redrawCount === 1 ? 'stiforbedring er' : 'stiforbedringer er'} registrert som punkt eller flate og bør tegnes om som linje.
+            {redrawText} bør tegnes om – stiforbedringer som linje, parkeringer som flate.
           </span>
           <button type="button" className={`wl-chip square ${redrawing ? 'on' : ''}`} aria-pressed={redrawing} onClick={() => setOnlyRedraw(!redrawing)}>
             Vis bare disse

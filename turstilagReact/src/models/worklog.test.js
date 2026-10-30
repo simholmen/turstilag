@@ -71,7 +71,7 @@ describe('taxonomy', () => {
 describe('geometry per kind', () => {
   it('allows each kind its own geometries', () => {
     expect(allowedGeoms('stiforbedring')).toEqual(['line'])
-    expect(allowedGeoms('parkering')).toEqual(['poly', 'point'])
+    expect(allowedGeoms('parkering')).toEqual(['poly'])
     expect(allowedGeoms('annet')).toHaveLength(3)
     expect(allowedGeoms('benk')).toEqual(['point'])
   })
@@ -82,11 +82,13 @@ describe('geometry per kind', () => {
     expect(defaultGeom('benk')).toBe('point')
   })
 
-  it('flags old stiforbedring points and areas for redrawing', () => {
+  it('flags old stiforbedring points and areas, and parkering points, for redrawing', () => {
     expect(needsRedraw({ type: 'stiforbedring', geomType: 'point' })).toBe(true)
     expect(needsRedraw({ type: 'stiforbedring', geomType: 'poly' })).toBe(true)
     expect(needsRedraw({ type: 'stiforbedring', geomType: 'line' })).toBe(false)
-    expect(needsRedraw({ type: 'parkering', geomType: 'point' })).toBe(false)
+    expect(needsRedraw({ type: 'parkering', geomType: 'point' })).toBe(true)
+    expect(needsRedraw({ type: 'parkering', geomType: 'poly' })).toBe(false)
+    expect(needsRedraw({ type: 'benk', geomType: 'point' })).toBe(false)
   })
 
   it('keeps an old geometry only while the kind is unchanged', () => {
