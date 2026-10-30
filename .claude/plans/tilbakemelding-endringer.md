@@ -4,7 +4,7 @@ Status:
 - Fase 1 er implementert på branchen `feature/fase1-taksonomi` (migrering `20261030120000_fase1_taxonomy_keys.sql`, overgangsversjon).
 - Oppfølgingsmigreringen `20261030130000_fase1_drop_old_keys.sql` er kjørt: databasen godtar bare de nye nøklene. Fase 1 er ferdig.
 - Fase 2 er implementert på branchen `feature/fase2-geometri` (migrering `20261030140000_fase2_parkering_flate.sql` er kjørt). Gjenstår: tegne om de 48 gamle stiforbedringspunktene som linjer (og 1 parkeringspunkt som flate).
-- Fase 3 er implementert på branchen `feature/fase3-eiendommer` (migrering `20261030150000_fase3_owner_contacts.sql` er kjørt). Gjenstår etterpå: migrering som fjerner contact_name/phone/email.
+- Fase 3 er implementert på branchen `feature/fase3-eiendommer` (migrering `20261030150000_fase3_owner_contacts.sql` er kjørt). Oppfølgingsmigreringen `20261030160000_fase3_drop_old_contact_columns.sql` er kjørt. Fase 3 er ferdig.
 - Fase 4–5 er ikke startet.
 
 ## Beslutninger
