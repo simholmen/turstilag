@@ -18,7 +18,7 @@ export const SHAPES = { rundtur: 'Rundtur', turretur: 'Tur-retur', ab: 'A–B' }
 
 // Facilitated stretches along a route: solid for a bridge, planks for everything else. The map
 // (dashArray) and the sidebar strip (this gradient) must read alike.
-export const BRIDGE_COLOR = TYPES.tilrettelegging.color
+export const BRIDGE_COLOR = TYPES.stiforbedring.color
 export const PLANK_BG = `repeating-linear-gradient(90deg,${BRIDGE_COLOR} 0 3px,#fff 3px 5px)`
 export const spanBg = (subtypes) => (subtypes?.includes('bru') ? BRIDGE_COLOR : PLANK_BG)
 
@@ -75,7 +75,7 @@ export const rowToRoute = (row, features = [], ownerIds = []) => {
     features,
     ownerIds,
     gjerdeCount: features.filter((f) => f.kind === 'gjerdeklyver').length,
-    tilretteCount: features.filter((f) => f.kind === 'tilrettelegging').length,
+    stiforbedringCount: features.filter((f) => f.kind === 'stiforbedring').length,
     updatedAt: row.updated_at,
   }
 }

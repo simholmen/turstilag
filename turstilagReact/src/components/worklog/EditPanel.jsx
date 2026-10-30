@@ -181,7 +181,7 @@ export function EditForm({
 
             <label className="wl-field">
               <span className="wl-label">Tittel *</span>
-              <input className={`wl-input ${tried && !draft.title.trim() ? 'invalid' : ''}`} value={draft.title} onChange={set('title')} placeholder="F.eks. Nytt kryssningspunkt ved startpunktet" />
+              <input className={`wl-input ${tried && !draft.title.trim() ? 'invalid' : ''}`} value={draft.title} onChange={set('title')} placeholder="F.eks. Nytt krysningspunkt ved startpunktet" />
             </label>
 
             {hasField(draft.type, 'plasser') && (
@@ -211,7 +211,7 @@ export function EditForm({
                 rows={4}
                 value={draft.desc}
                 onChange={set('desc')}
-                placeholder={other ? 'Beskriv den andre typen kryssningspunkt' : 'Hva ble gjort, og hvorfor?'}
+                placeholder={other ? 'Beskriv den andre typen krysningspunkt' : 'Hva ble gjort, og hvorfor?'}
               />
             </label>
 

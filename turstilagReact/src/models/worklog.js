@@ -8,6 +8,7 @@ import bridge from 'lucide-static/icons/bridge.svg?raw'
 import mapIcon from 'lucide-static/icons/map.svg?raw'
 import armchair from 'lucide-static/icons/armchair.svg?raw'
 import squareParking from 'lucide-static/icons/square-parking.svg?raw'
+import split from 'lucide-static/icons/split.svg?raw'
 import ellipsis from 'lucide-static/icons/ellipsis.svg?raw'
 
 // Drop the license comment so the markup can be inlined anywhere
@@ -15,13 +16,15 @@ const svg = (raw) => raw.slice(raw.indexOf('<svg'))
 
 // Point kinds, in design order. `gjerdeklyver` lives in its own table, everything else in
 // other_points.kind. benk's blue is the same as the old drenering type's — that type is now a
-// tilrettelegging subtype, so the two never show side by side. Don't "fix" it.
+// stiforbedring subtype, so the two never show side by side. Don't "fix" it.
 export const TYPES = {
-  gjerdeklyver: { label: 'Kryssningspunkt', plural: 'Kryssningspunkter', color: '#b4532a', icon: svg(fence) },
-  tilrettelegging: { label: 'Tilrettelegging', plural: 'Tilrettelegginger', color: '#6b5a45', icon: svg(bridge) },
+  gjerdeklyver: { label: 'Krysningspunkt', plural: 'Krysningspunkter', color: '#b4532a', icon: svg(fence) },
+  stiforbedring: { label: 'Stiforbedring', plural: 'Stiforbedringer', color: '#6b5a45', icon: svg(bridge) },
   turinfo: { label: 'Turinfo', plural: 'Turinfo', color: '#6a4f8c', icon: svg(mapIcon) },
   benk: { label: 'Benk', plural: 'Benker', color: '#2c6e8a', icon: svg(armchair) },
   parkering: { label: 'Parkering', plural: 'Parkeringsplasser', color: '#1f4f8a', icon: svg(squareParking) },
+  // Where paths meet; belongs to the stinettverk
+  stikryss: { label: 'Stikryss', plural: 'Stikryss', color: '#8a6d1c', icon: svg(split) },
   // Also where rows with an unknown kind end up (e.g. old 'poi', 'trail', 'merking')
   annet: { label: 'Annet', plural: 'Annet', color: '#5b6259', icon: svg(ellipsis) },
 }
@@ -32,20 +35,27 @@ export const SUBTYPES = {
     turstitrapp: { label: 'Turstitrapp', about: 'Bred trapp med rekkverk over gjerdet eller steingarden.' },
     turstiport: { label: 'Turstiport', about: 'Selvlukkende port i gjerdet – ingen klatring. Egner seg for barnevogn, hund og de som ikke vil over en stige.' },
     hundeluke: { label: 'Hundeluke', about: 'Egen luke i gjerdet, så hunden slipper å løftes over.' },
+    ombygd: { label: 'Ombygd gjerdeklyver', about: '' },
     // Named per entry (subtypeOther), so there is no shared copy
     annen: { label: 'Annen type', about: '' },
   },
-  tilrettelegging: {
+  stiforbedring: {
     bru: { label: 'Bru', about: 'Bru over bekk eller elv.' },
     klopp: { label: 'Klopp', about: 'Planker lagt over vått parti. Kan være glatt i regnvær.' },
     trapp: { label: 'Trapp', about: 'Trinn i bratt terreng.' },
-    rekkverk: { label: 'Rekkverk', about: 'Kjetting eller rekkverk å holde seg i der det er bratt eller glatt.' },
-    steinsetting: { label: 'Steinsetting', about: 'Stein lagt ut som fast dekke i vått eller slitt terreng.' },
+    kjetting: { label: 'Kjetting', about: 'Kjetting å holde seg i der det er bratt eller glatt.' },
+    naturstein: { label: 'Naturstein', about: 'Naturstein lagt ut som fast dekke i vått eller slitt terreng.' },
+    stikkror: { label: 'Stikkrøyr', about: 'Rør under stien som leder vannet bort.' },
     // Carried over from the old worklog types, no design copy
-    drenering: { label: 'Drenering', about: '' },
     grus: { label: 'Grus', about: '' },
     treflis: { label: 'Treflis', about: '' },
-    underlag: { label: 'Underlag', about: '' },
+    steinstov: { label: 'Steinstøv', about: 'Fint steinstøv som gir et fast og jevnt underlag.' },
+  },
+  // No design copy yet
+  benk: {
+    kvilebenk: { label: 'Kvilebenk', about: '' },
+    bordbenk: { label: 'Bordbenk', about: '' },
+    enkel: { label: 'Enkel benk', about: '' },
   },
 }
 
@@ -90,16 +100,16 @@ export const entrySubtypeLabel = (entry) => subtypesLabel(entry.type, entry.subt
 
 // Which geometry each kind may have. Enforced in the database (other_points_geom_kind_chk).
 export const GEOM_BY_KIND = {
-  tilrettelegging: ['point', 'line', 'poly'],
+  stiforbedring: ['point', 'line', 'poly'],
   annet: ['point', 'line', 'poly'],
-  // gjerdeklyver, turinfo, benk, parkering fall through to the default
+  // gjerdeklyver, turinfo, benk, parkering, stikryss fall through to the default
 }
 export const DEFAULT_GEOM = ['point']
 
 // Preselected drawing tool, overridable in the form. Not a constraint: a bru can be either.
 export const DEFAULT_GEOM_BY_SUBTYPE = {
-  klopp: 'line', rekkverk: 'line', drenering: 'line', grus: 'line', treflis: 'line', underlag: 'line',
-  steinsetting: 'poly',
+  klopp: 'line', kjetting: 'line', stikkror: 'line', grus: 'line', treflis: 'line', steinstov: 'line',
+  naturstein: 'poly',
   bru: 'point', trapp: 'point',
 }
 

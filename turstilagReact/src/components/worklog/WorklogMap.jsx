@@ -76,7 +76,7 @@ const entryIcon = (html, size) => L.divIcon({ className: 'wl-divicon', html, ico
 const vertexIcon = (html) => L.divIcon({ className: 'wl-divicon', html, iconSize: [22, 22], iconAnchor: [11, 11] })
 const midpointIcon = () => L.divIcon({ className: 'wl-divicon', html: midpointHtml(), iconSize: [14, 14], iconAnchor: [7, 7] })
 
-// Linear tilrettelegging drawn over route lines: solid for a bridge, planks (brown/white dashes,
+// Linear stiforbedring drawn over route lines: solid for a bridge, planks (brown/white dashes,
 // matching PLANK_BG in the sidebar strip) for everything else
 const addStretch = (group, entry, { interactive, onClick, faded }) => {
   const bridge = entry.subtypes.includes('bru')
@@ -193,7 +193,7 @@ function Markers({
         // Drawn through the exact vertices of the facilitated stretches along it, so the two
         // don't show up as parallel lines where they were digitised a few metres apart
         const stretches = route.features
-          .filter((f) => f.kind === 'tilrettelegging' && f.kmFra != null)
+          .filter((f) => f.kind === 'stiforbedring' && f.kmFra != null)
           .map((f) => entryByKey.get(f.key))
           .filter((e) => e?.geomType === 'line' && !(edit?.kind === 'entry' && edit.id === e.key))
           .map((e) => e.latLngs)
@@ -214,7 +214,7 @@ function Markers({
     if (!worklogMode) {
       // Turruter always draws facilitated stretches, since they're part of reading the route lines
       const stretches = entries.filter((e) => e.geomType === 'line'
-        && (shown.includes(e) || (mode === 'ruter' && e.type === 'tilrettelegging')))
+        && (shown.includes(e) || (mode === 'ruter' && e.type === 'stiforbedring')))
       stretches.forEach((entry) => {
         if (edit?.kind === 'entry' && edit.id === entry.key) return
         addStretch(group, entry, { interactive, onClick: () => onEntryClick(entry.key), faded: Boolean(edit) })

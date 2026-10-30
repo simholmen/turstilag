@@ -10,8 +10,8 @@ const {
 const { toLatLngs } = await import('./geometry')
 
 describe('taxonomy', () => {
-  it('has the 6 kinds in design order', () => {
-    expect(Object.keys(TYPES)).toEqual(['gjerdeklyver', 'tilrettelegging', 'turinfo', 'benk', 'parkering', 'annet'])
+  it('has the 7 kinds in design order', () => {
+    expect(Object.keys(TYPES)).toEqual(['gjerdeklyver', 'stiforbedring', 'turinfo', 'benk', 'parkering', 'stikryss', 'annet'])
   })
 
   it('returns subtype copy verbatim and is null-safe', () => {
@@ -24,7 +24,7 @@ describe('taxonomy', () => {
 
   it('knows which kinds have subtypes', () => {
     expect(hasSubtypes('turinfo')).toBe(false)
-    expect(hasSubtypes('tilrettelegging')).toBe(true)
+    expect(hasSubtypes('stiforbedring')).toBe(true)
   })
 
   it('drops a subtype that does not belong to the kind', () => {
@@ -32,11 +32,19 @@ describe('taxonomy', () => {
     expect(validSubtype('gjerdeklyver', 'turstiport')).toBe('turstiport')
   })
 
-  it('keeps several subtypes only for kryssningspunkt', () => {
+  it('keeps several subtypes only for krysningspunkt', () => {
     expect(validSubtypes('gjerdeklyver', ['hundeluke', 'turstitrapp', 'bru'])).toEqual(['turstitrapp', 'hundeluke'])
-    expect(validSubtypes('tilrettelegging', ['klopp', 'bru'])).toEqual(['bru'])
+    expect(validSubtypes('stiforbedring', ['klopp', 'bru'])).toEqual(['bru'])
     expect(validSubtypes('benk', ['klopp'])).toEqual([])
     expect(validSubtypes('gjerdeklyver', null)).toEqual([])
+  })
+
+  it('labels the renamed and added subtypes', () => {
+    expect(subtypesLabel('gjerdeklyver', ['turstitrapp', 'ombygd'])).toBe('Turstitrapp, Ombygd gjerdeklyver')
+    expect(subtypeLabel('stiforbedring', 'stikkror')).toBe('Stikkrøyr')
+    expect(subtypeLabel('stiforbedring', 'rekkverk')).toBeUndefined()
+    expect(validSubtypes('benk', ['bordbenk'])).toEqual(['bordbenk'])
+    expect(hasSubtypes('stikryss')).toBe(false)
   })
 
   it('labels annen type by its typed-out name', () => {
@@ -61,26 +69,26 @@ describe('taxonomy', () => {
 })
 
 describe('geometry per kind', () => {
-  it('allows lines and areas only for tilrettelegging and annet', () => {
-    expect(allowedGeoms('tilrettelegging')).toHaveLength(3)
+  it('allows lines and areas only for stiforbedring and annet', () => {
+    expect(allowedGeoms('stiforbedring')).toHaveLength(3)
     expect(allowedGeoms('annet')).toHaveLength(3)
     expect(allowedGeoms('benk')).toEqual(['point'])
   })
 
   it('preselects a tool from the subtype', () => {
-    expect(defaultGeom('tilrettelegging', 'klopp')).toBe('line')
-    expect(defaultGeom('tilrettelegging', 'trapp')).toBe('point')
-    expect(defaultGeom('tilrettelegging', 'steinsetting')).toBe('poly')
+    expect(defaultGeom('stiforbedring', 'klopp')).toBe('line')
+    expect(defaultGeom('stiforbedring', 'trapp')).toBe('point')
+    expect(defaultGeom('stiforbedring', 'naturstein')).toBe('poly')
     expect(defaultGeom('benk', 'klopp')).toBe('point')
   })
 
   it('builds an open line and a closed polygon', () => {
     const points = [[58.77, 5.85], [58.78, 5.86], [58.78, 5.85]]
-    const line = entryGeometry({ type: 'tilrettelegging', geomType: 'line', points })
+    const line = entryGeometry({ type: 'stiforbedring', geomType: 'line', points })
     expect(line.type).toBe('LineString')
     expect(line.coordinates).toHaveLength(3)
     expect(line.coordinates[0]).toEqual([5.85, 58.77])
-    const poly = entryGeometry({ type: 'tilrettelegging', geomType: 'poly', points })
+    const poly = entryGeometry({ type: 'stiforbedring', geomType: 'poly', points })
     expect(poly.type).toBe('Polygon')
     expect(poly.coordinates[0]).toHaveLength(4)
     expect(poly.coordinates[0][3]).toEqual(poly.coordinates[0][0])
@@ -92,7 +100,7 @@ describe('geometry per kind', () => {
   })
 
   it('requires enough vertices for the geometry type', () => {
-    const draft = { area: '1', type: 'tilrettelegging', title: 'x', geomType: 'line', points: [[1, 2]], ll: null }
+    const draft = { area: '1', type: 'stiforbedring', title: 'x', geomType: 'line', points: [[1, 2]], ll: null }
     expect(missingFields({ kind: 'entry', draft })).toEqual(['strekning (minst 2 punkter)'])
     expect(missingFields({ kind: 'entry', draft: { ...draft, points: [[1, 2], [3, 4]] } })).toEqual([])
   })
@@ -110,7 +118,7 @@ describe('geometry per kind', () => {
 describe('rowToEntry', () => {
   it('uses the view anchor and extent for a line', () => {
     const entry = rowToEntry({
-      id: '7', kind: 'tilrettelegging', subtypes: ['klopp'], source_table: 'other_points', geom_type: 'LINESTRING',
+      id: '7', kind: 'stiforbedring', subtypes: ['klopp'], source_table: 'other_points', geom_type: 'LINESTRING',
       geometry: { type: 'LineString', coordinates: [[5.85, 58.77], [5.86, 58.78]] },
       anchor: { type: 'Point', coordinates: [5.855, 58.775] }, length_m: 120, area_m2: 0, title: 'K',
     }, { id: '1' })
@@ -130,7 +138,7 @@ describe('rowToEntry', () => {
     expect(entry.subtypes).toEqual([])
   })
 
-  it('reads a kryssningspunkt with several subtypes', () => {
+  it('reads a krysningspunkt with several subtypes', () => {
     const entry = rowToEntry({
       id: '4', kind: 'gjerdeklyver', source_table: 'gjerdeklyvere', geom_type: 'POINT', subtypes: ['turstitrapp', 'annen'],
       subtype_other: 'Grind', geometry: { type: 'Point', coordinates: [5.8, 58.7] }, title: 'G',
