@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { loadTrails } from '../models/trails'
+import { loadNetworks } from '../models/networks'
 
-export function useTrails() {
-  const [trails, setTrails] = useState([])
+export function useNetworks() {
+  const [networks, setNetworks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const refresh = useCallback(async () => {
     try {
       setError(null)
-      setTrails(await loadTrails())
+      setNetworks(await loadNetworks())
     } catch (loadError) {
-      console.error('Loading trails failed:', loadError)
+      console.error('Loading trail networks failed:', loadError)
       setError(loadError)
     } finally {
       setLoading(false)
@@ -22,5 +22,5 @@ export function useTrails() {
     void refresh()
   }, [refresh])
 
-  return { trails, loading, error, refresh }
+  return { networks, loading, error, refresh }
 }

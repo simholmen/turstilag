@@ -7,7 +7,7 @@ import landPlotIcon from 'lucide-static/icons/land-plot.svg?raw'
 import { useWorklog } from './hooks/useWorklog'
 import { useOwners } from './hooks/useOwners'
 import { useRoutes } from './hooks/useRoutes'
-import { useTrails } from './hooks/useTrails'
+import { useNetworks } from './hooks/useNetworks'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useSheetDrag } from './hooks/useSheetDrag'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
@@ -29,8 +29,8 @@ import InfoList from './components/info/InfoList'
 import PointDetail from './components/info/PointDetail'
 import RouteList from './components/routes/RouteList'
 import RouteDetail from './components/routes/RouteDetail'
-import TrailList from './components/trails/TrailList'
-import TrailDetail from './components/trails/TrailDetail'
+import NetworkList from './components/networks/NetworkList'
+import NetworkDetail from './components/networks/NetworkDetail'
 
 const MODES = [
   { id: 'finnes', label: 'Hva finnes', icon: milestoneIcon },
@@ -41,7 +41,7 @@ const MODES = [
 // reachable but not among the primary tabs
 const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
 
-// Mode and the selected point/route/trail live in the URL so they survive reloads and Back works
+// Mode and the selected point/route/network live in the URL so they survive reloads and Back works
 const readUrl = () => {
   const q = new URLSearchParams(window.location.search)
   const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : 'finnes'
@@ -49,15 +49,15 @@ const readUrl = () => {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,
     route: mode === 'ruter' ? q.get('rute') : null,
-    trail: mode === 'stinettverk' ? q.get('sti') : null,
+    network: mode === 'stinettverk' ? q.get('nettverk') : null,
   }
 }
 
-const buildSearch = ({ mode, point, route, trail }) => {
+const buildSearch = ({ mode, point, route, network }) => {
   const q = new URLSearchParams({ modus: mode })
   if (point) q.set('punkt', point)
   if (route) q.set('rute', route)
-  if (trail) q.set('sti', trail)
+  if (network) q.set('nettverk', network)
   return `?${q.toString()}`
 }
 
@@ -66,7 +66,7 @@ function App() {
   const { areas, entries, loading, error, version } = useWorklog()
   const { owners, parcels, loading: ownersLoading } = useOwners()
   const { routes } = useRoutes()
-  const { trails } = useTrails()
+  const { networks } = useNetworks()
   const isMobile = useIsMobile()
   const geo = useGeolocation()
   const { width: sidebarWidth, dragging: resizing, startResize } = useSidebarWidth()
@@ -113,12 +113,12 @@ function App() {
 
   const point = mode === 'finnes' ? entries.find((e) => e.key === nav.point) : null
   const route = mode === 'ruter' ? routes.find((r) => r.id === nav.route) : null
-  const trail = mode === 'stinettverk' ? trails.find((t) => t.id === nav.trail) : null
+  const network = mode === 'stinettverk' ? networks.find((n) => n.id === nav.network) : null
   const shownRoutes = difficulty ? routes.filter((r) => r.difficulty === difficulty) : routes
 
   const navigate = useCallback((patch) => {
     setNav((prev) => {
-      const next = { ...prev, point: null, route: null, trail: null, ...patch }
+      const next = { ...prev, point: null, route: null, network: null, ...patch }
       const search = buildSearch(next)
       if (search !== window.location.search) window.history.pushState(null, '', search)
       return next
@@ -166,9 +166,9 @@ function App() {
     navigate({ mode: 'ruter', route: id })
   }, [navigate])
 
-  const selectTrail = useCallback((id) => {
+  const selectNetwork = useCallback((id) => {
     setOwnerId(null)
-    navigate({ mode: 'stinettverk', trail: id })
+    navigate({ mode: 'stinettverk', network: id })
   }, [navigate])
 
   const toggleEntry = useCallback((key) => setEntryId((prev) => (prev === key ? null : key)), [])
@@ -182,9 +182,9 @@ function App() {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [areaId, ownerId, mode, nav.point, nav.route, nav.trail])
+  }, [areaId, ownerId, mode, nav.point, nav.route, nav.network])
 
-  const selectionKey = [mode, areaId, ownerId, entryId, nav.point, nav.route, nav.trail].join('|')
+  const selectionKey = [mode, areaId, ownerId, entryId, nav.point, nav.route, nav.network].join('|')
   const panelCollapsed = collapsedAt === selectionKey
   const { mapH: sheetMapH, handleProps: sheetHandleProps } = useSheetDrag({
     bodyRef,
@@ -244,18 +244,10 @@ function App() {
     }
 
     if (mode === 'stinettverk') {
-      if (trail) {
-        return (
-          <TrailDetail
-            trail={trail}
-            trails={trails}
-            areas={areas}
-            onBack={() => navigate({ mode: 'stinettverk' })}
-            onSelect={selectTrail}
-          />
-        )
+      if (network) {
+        return <NetworkDetail network={network} areas={areas} onBack={() => navigate({ mode: 'stinettverk' })} />
       }
-      return <TrailList trails={trails} areas={areas} onSelect={selectTrail} />
+      return <NetworkList networks={networks} areas={areas} onSelect={selectNetwork} />
     }
 
     if (mode === 'ruter') {
@@ -343,13 +335,13 @@ function App() {
           parcels={parcels}
           owners={ownerViews}
           routes={mode === 'ruter' ? shownRoutes : routes}
-          trails={trails}
+          networks={networks}
           layers={layers}
           areaId={areaId}
           entryId={worklogMode ? entryId : nav.point}
           ownerId={ownerId}
           routeId={nav.route}
-          trailId={nav.trail}
+          networkId={nav.network}
           filter={filter}
           version={version}
           isMobile={isMobile}
@@ -358,7 +350,7 @@ function App() {
           onEntryClick={onMapEntryClick}
           onOwnerClick={selectOwner}
           onRouteClick={selectRoute}
-          onTrailClick={selectTrail}
+          onNetworkClick={selectNetwork}
         >
           {isMobile ? (
             <MapFilterMenu

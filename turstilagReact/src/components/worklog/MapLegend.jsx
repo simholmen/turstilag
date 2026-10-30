@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SUBTYPES, TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
-import { TRAIL_COLOR } from '../../models/trails'
+import { TRAIL_COLOR } from '../../models/networks'
 import KindSquare from '../info/KindSquare'
 import OwnerSymbol from './OwnerSymbol'
 import TypeDot from './TypeDot'

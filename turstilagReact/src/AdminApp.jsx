@@ -8,7 +8,7 @@ import waypointsIcon from 'lucide-static/icons/waypoints.svg?raw'
 import { useWorklog } from './hooks/useWorklog'
 import { useOwners } from './hooks/useOwners'
 import { useRoutes } from './hooks/useRoutes'
-import { useTrails } from './hooks/useTrails'
+import { useNetworks } from './hooks/useNetworks'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
 import { useGeolocation } from './hooks/useGeolocation'
@@ -16,7 +16,9 @@ import {
   GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, needsRedraw, saveArea, saveEntry,
 } from './models/worklog'
 import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
-import { deleteTrail, missingTrailFields, saveTrail, snapToNetwork } from './models/trails'
+import {
+  END_SNAP_M, START_SNAP_M, addPath, deleteNetwork, missingNetworkFields, nearestOnNetwork, removePart, saveNetwork,
+} from './models/networks'
 import { DEFAULT_LAYERS, LAYER_KEYS, toggleKindIn } from './models/layers'
 import {
   OWNER_COLORS, buildOwnerViews, emptyContact, deleteOwner, deleteParcel, missingOwnerFields, missingParcelFields, ownersForArea, saveOwner, saveParcel,
@@ -38,9 +40,9 @@ import RouteDetail from './components/routes/RouteDetail'
 import { EditFooter, EditForm } from './components/worklog/EditPanel'
 import { OwnerEditFooter, OwnerEditForm } from './components/worklog/EditOwnerPanel'
 import { RouteEditFooter, RouteEditForm } from './components/worklog/RouteEditPanel'
-import TrailList from './components/trails/TrailList'
-import TrailDetail from './components/trails/TrailDetail'
-import { TrailEditFooter, TrailEditForm } from './components/trails/TrailEditPanel'
+import NetworkList from './components/networks/NetworkList'
+import NetworkDetail from './components/networks/NetworkDetail'
+import { NetworkEditFooter, NetworkEditForm } from './components/networks/NetworkEditPanel'
 
 const MODES = [
   { id: 'stinettverk', label: 'Stinettverk', icon: waypointsIcon },
@@ -51,7 +53,7 @@ const MODES = [
 // Arbeidslogg is still reachable (?modus=arbeidslogg), just not one of the primary tabs
 const MODE_IDS = ['stinettverk', 'finnes', 'ruter', 'grunneiere', 'arbeidslogg']
 
-// Mode and the selected point/route/trail live in the URL so they survive reloads and Back works
+// Mode and the selected point/route/network live in the URL so they survive reloads and Back works
 const readUrl = () => {
   const q = new URLSearchParams(window.location.search)
   const mode = MODE_IDS.includes(q.get('modus')) ? q.get('modus') : 'finnes'
@@ -59,15 +61,15 @@ const readUrl = () => {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,
     route: mode === 'ruter' ? q.get('rute') : null,
-    trail: mode === 'stinettverk' ? q.get('sti') : null,
+    network: mode === 'stinettverk' ? q.get('nettverk') : null,
   }
 }
 
-const buildSearch = ({ mode, point, route, trail }) => {
+const buildSearch = ({ mode, point, route, network }) => {
   const q = new URLSearchParams({ modus: mode })
   if (point) q.set('punkt', point)
   if (route) q.set('rute', route)
-  if (trail) q.set('sti', trail)
+  if (network) q.set('nettverk', network)
   return `?${q.toString()}`
 }
 
@@ -92,14 +94,18 @@ const nearestArea = (areas, [lat, lng]) => {
 
 const isOwnerEdit = (edit) => edit?.kind === 'owner' || edit?.kind === 'parcel'
 const isRouteEdit = (edit) => edit?.kind === 'route'
-const isTrailEdit = (edit) => edit?.kind === 'trail'
+// 'network' (name etc., plus the first path when new), 'network-path' and 'network-remove'
+const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
+
+// A network edit draws a path when it adds one: always for 'network-path', and for a new network
+const drawsPath = (edit) => edit?.kind === 'network-path' || (edit?.kind === 'network' && !edit.id)
 
 // The edit's geometry is built from several clicked vertices rather than a single point
-const accumulatesPoints = (edit) => edit?.kind === 'parcel' || edit?.kind === 'route' || edit?.kind === 'trail'
+const accumulatesPoints = (edit) => edit?.kind === 'parcel' || edit?.kind === 'route' || drawsPath(edit)
   || (edit?.kind === 'entry' && Boolean(edit.draft.type) && entryGeomType(edit.draft) !== 'point')
 
 // 'poly' for closed shapes, 'line' for open ones — drives vertex minimums and the map preview
-const drawnGeomType = (edit) => (edit.kind === 'parcel' ? 'poly' : edit.kind === 'route' || edit.kind === 'trail' ? 'line' : entryGeomType(edit.draft))
+const drawnGeomType = (edit) => (edit.kind === 'parcel' ? 'poly' : edit.kind === 'route' || drawsPath(edit) ? 'line' : entryGeomType(edit.draft))
 
 const toDraftPoints = (entry) => (entry.geomType === 'poly' ? entry.latLngs.slice(0, -1) : entry.geomType === 'line' ? entry.latLngs : [])
 
@@ -107,7 +113,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
   const { areas, entries, loading, version, refresh } = useWorklog()
   const { owners, parcels, loading: ownersLoading, refresh: refreshOwners } = useOwners()
   const { routes, refresh: refreshRoutes } = useRoutes()
-  const { trails, refresh: refreshTrails } = useTrails()
+  const { networks, refresh: refreshNetworks } = useNetworks()
   const isMobile = useIsMobile()
   const geo = useGeolocation()
   const { width: sidebarWidth, dragging: resizing, startResize } = useSidebarWidth()
@@ -158,12 +164,12 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
   const point = mode === 'finnes' ? entries.find((e) => e.key === nav.point) : null
   const route = mode === 'ruter' ? routes.find((r) => r.id === nav.route) : null
-  const trail = mode === 'stinettverk' ? trails.find((t) => t.id === nav.trail) : null
+  const network = mode === 'stinettverk' ? networks.find((n) => n.id === nav.network) : null
   const shownRoutes = difficulty ? routes.filter((r) => r.difficulty === difficulty) : routes
 
   const navigate = useCallback((patch) => {
     setNav((prev) => {
-      const next = { ...prev, point: null, route: null, trail: null, ...patch }
+      const next = { ...prev, point: null, route: null, network: null, ...patch }
       const search = buildSearch(next)
       if (search !== window.location.search) window.history.pushState(null, '', search)
       return next
@@ -178,15 +184,15 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [areaId, ownerId, mode, nav.point, nav.route, nav.trail, edit?.kind, edit?.id])
+  }, [areaId, ownerId, mode, nav.point, nav.route, nav.network, edit?.kind, edit?.id])
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
 
-  const flash = (message) => {
+  const flash = useCallback((message) => {
     clearTimeout(toastTimer.current)
     setToast(message)
     toastTimer.current = setTimeout(() => setToast(null), 2400)
-  }
+  }, [])
 
   const cancelEdit = () => {
     setEdit(null)
@@ -231,9 +237,9 @@ export default function AdminApp({ userEmail, onSignOut }) {
     navigate({ mode: 'ruter', route: id })
   }, [navigate])
 
-  const selectTrail = useCallback((id) => {
+  const selectNetwork = useCallback((id) => {
     setOwnerId(null)
-    navigate({ mode: 'stinettverk', trail: id })
+    navigate({ mode: 'stinettverk', network: id })
   }, [navigate])
 
   const toggleEntry = useCallback((key) => setEntryId((prev) => (prev === key ? null : key)), [])
@@ -327,24 +333,43 @@ export default function AdminApp({ userEmail, onSignOut }) {
     direction: r.direction, desc: r.desc, images: [...r.images], points: r.latLngs,
   }, { placing: false })
 
-  const newTrail = () => {
-    startEdit('trail', null, { name: '', hub: '', points: [] }, { placing: true, initialLL: trail?.latLngs[0] || null })
+  const newNetwork = () => {
+    startEdit('network', null, { name: '', hub: '', desc: '', points: [] }, { placing: true, initialLL: area?.ll || null })
   }
 
-  const editTrail = (t) => startEdit('trail', t.id, { name: t.name, hub: t.hubId || '', points: t.latLngs }, { placing: false })
+  const editNetwork = (n) => startEdit('network', n.id, { name: n.name, hub: n.hubId || '', desc: n.desc }, { placing: false })
 
-  // A trail vertex lands on a nearby vertex of another segment, so the network stays connected
-  const snapVertex = useCallback((current, ll) => (current?.kind === 'trail' ? snapToNetwork(ll, trails, current.id) : ll), [trails])
+  const addNetworkPath = (n) => startEdit('network-path', n.id, { points: [] }, { placing: true })
+
+  const removeNetworkPart = (n) => startEdit('network-remove', n.id, { part: null }, { placing: false })
+
+  // "Legg til sti" starts on the network: the first vertex goes onto its nearest line, or nowhere if
+  // the click is too far off. Later vertices close to the network are moved onto it too. Returns
+  // null for a click that should be ignored.
+  const snapVertex = useCallback((current, ll, index) => {
+    if (current?.kind !== 'network-path') return ll
+    const target = networks.find((n) => n.id === current.id)
+    const near = target && nearestOnNetwork(ll, target.parts)
+    if (index === 0) return near && near.distM <= START_SNAP_M ? near.ll : null
+    return near && near.distM <= END_SNAP_M ? near.ll : ll
+  }, [networks])
 
   const updateDraft = useCallback((patch) => {
     setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, ...patch } })
   }, [])
 
+  const handlePartClick = useCallback((part) => updateDraft({ part }), [updateDraft])
+
   const handlePlace = useCallback((ll) => {
+    const vertex = accumulatesPoints(edit) ? snapVertex(edit, ll, edit.draft.points.length) : ll
+    if (!vertex) {
+      flash('Start med å trykke på en sti i nettverket')
+      return
+    }
     setEdit((prev) => {
       if (!prev) return prev
       if (accumulatesPoints(prev)) {
-        const patch = { points: [...prev.draft.points, snapVertex(prev, ll)] }
+        const patch = { points: [...prev.draft.points, vertex] }
         // A line/area entry gets its turområde from its first vertex, like a point does from its position
         if (prev.kind === 'entry' && !prev.draft.area && prev.draft.points.length === 0) patch.area = nearestArea(areas, ll)
         return { ...prev, draft: { ...prev.draft, ...patch } }
@@ -354,7 +379,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
       return { ...prev, draft: { ...prev.draft, ...patch } }
     })
     if (!accumulatesPoints(edit)) setPlacing(false)
-  }, [areas, edit, snapVertex])
+  }, [areas, edit, snapVertex, flash])
 
   const handleDraftMove = useCallback((ll) => updateDraft({ ll }), [updateDraft])
 
@@ -362,7 +387,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
     setEdit((prev) => {
       if (!prev) return prev
       const points = [...prev.draft.points]
-      points[index] = snapVertex(prev, ll)
+      points[index] = snapVertex(prev, ll, index) ?? points[index]
       return { ...prev, draft: { ...prev.draft, points } }
     })
   }, [snapVertex])
@@ -371,7 +396,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
     setEdit((prev) => {
       if (!prev) return prev
       const points = [...prev.draft.points]
-      points.splice(index, 0, snapVertex(prev, ll))
+      points.splice(index, 0, snapVertex(prev, ll, index) ?? ll)
       return { ...prev, draft: { ...prev.draft, points } }
     })
   }, [snapVertex])
@@ -386,7 +411,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
     const missing = edit.kind === 'owner' ? missingOwnerFields(edit.draft)
       : edit.kind === 'parcel' ? missingParcelFields(edit.draft)
         : edit.kind === 'route' ? missingRouteFields(edit.draft)
-          : edit.kind === 'trail' ? missingTrailFields(edit.draft)
+          : isNetworkEdit(edit) ? missingNetworkFields(edit)
             : missingFields(edit)
     if (missing.length) {
       setTried(true)
@@ -433,13 +458,25 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await refreshRoutes()
         selectRoute(id)
         flash(edit.id ? 'Ruta er oppdatert' : 'Ny rute opprettet')
-      } else if (edit.kind === 'trail') {
-        const original = edit.id ? trails.find((t) => t.id === edit.id) : null
-        const draft = { ...edit.draft, hub: edit.draft.hub || nearestArea(areas, edit.draft.points[0]) || '' }
-        const id = await saveTrail(original, draft)
-        await refreshTrails()
-        selectTrail(id)
-        flash(edit.id ? 'Stien er oppdatert' : 'Ny sti opprettet')
+      } else if (edit.kind === 'network') {
+        const original = edit.id ? networks.find((n) => n.id === edit.id) : null
+        const first = edit.draft.points?.[0]
+        const draft = { ...edit.draft, hub: edit.draft.hub || (first ? nearestArea(areas, first) : '') || '' }
+        const id = await saveNetwork(original, draft)
+        if (!original) await addPath(id, edit.draft.points)
+        await refreshNetworks()
+        selectNetwork(id)
+        flash(edit.id ? 'Stinettverket er oppdatert' : 'Nytt stinettverk opprettet')
+      } else if (edit.kind === 'network-path') {
+        await addPath(edit.id, edit.draft.points)
+        await refreshNetworks()
+        selectNetwork(edit.id)
+        flash('Stien er lagt til i nettverket')
+      } else if (edit.kind === 'network-remove') {
+        await removePart(edit.id, edit.draft.part)
+        await refreshNetworks()
+        selectNetwork(edit.id)
+        flash('Biten er fjernet')
       } else {
         const original = edit.id ? parcels.find((p) => p.id === edit.id) : null
         await saveParcel(original, edit.draft)
@@ -485,11 +522,11 @@ export default function AdminApp({ userEmail, onSignOut }) {
         navigate({ mode: 'ruter' })
         flash('Ruta er slettet')
         await refreshRoutes()
-      } else if (edit.kind === 'trail') {
-        await deleteTrail(trails.find((t) => t.id === edit.id))
+      } else if (edit.kind === 'network') {
+        await deleteNetwork(networks.find((n) => n.id === edit.id))
         navigate({ mode: 'stinettverk' })
-        flash('Stien er slettet')
-        await refreshTrails()
+        flash('Stinettverket er slettet')
+        await refreshNetworks()
       } else {
         await deleteParcel(parcels.find((p) => p.id === edit.id))
         flash('Teigen er slettet')
@@ -527,9 +564,10 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onUndoPoint={undoPoint}
           onFinishDraw={finishDrawing}
         />
-      ) : isTrailEdit(edit) ? (
-        <TrailEditForm
+      ) : isNetworkEdit(edit) ? (
+        <NetworkEditForm
           edit={edit}
+          network={networks.find((n) => n.id === edit.id)}
           areas={areas}
           placing={placing}
           tried={tried}
@@ -593,19 +631,19 @@ export default function AdminApp({ userEmail, onSignOut }) {
     }
 
     if (mode === 'stinettverk') {
-      if (trail) {
+      if (network) {
         return (
-          <TrailDetail
-            trail={trail}
-            trails={trails}
+          <NetworkDetail
+            network={network}
             areas={areas}
             onBack={() => navigate({ mode: 'stinettverk' })}
-            onSelect={selectTrail}
-            onEditTrail={() => editTrail(trail)}
+            onEdit={() => editNetwork(network)}
+            onAddPath={() => addNetworkPath(network)}
+            onRemovePart={() => removeNetworkPart(network)}
           />
         )
       }
-      return <TrailList trails={trails} areas={areas} onSelect={selectTrail} onNewTrail={newTrail} />
+      return <NetworkList networks={networks} areas={areas} onSelect={selectNetwork} onNewNetwork={newNetwork} />
     }
 
     if (mode === 'finnes') {
@@ -723,8 +761,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
                 onDelete={handleDelete}
                 onCancel={cancelEdit}
               />
-            ) : isTrailEdit(edit) ? (
-              <TrailEditFooter
+            ) : isNetworkEdit(edit) ? (
+              <NetworkEditFooter
                 edit={edit}
                 tried={tried}
                 saving={saving}
@@ -771,13 +809,13 @@ export default function AdminApp({ userEmail, onSignOut }) {
           parcels={parcels}
           owners={ownerViews}
           routes={mode === 'ruter' ? shownRoutes : routes}
-          trails={trails}
+          networks={networks}
           layers={layers}
           areaId={areaId}
           entryId={worklogMode ? entryId : nav.point}
           ownerId={ownerId}
           routeId={nav.route}
-          trailId={nav.trail}
+          networkId={nav.network}
           filter={filter}
           edit={edit}
           drawGeom={drawGeom}
@@ -789,7 +827,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onEntryClick={worklogMode ? toggleEntry : selectPoint}
           onOwnerClick={selectOwner}
           onRouteClick={selectRoute}
-          onTrailClick={selectTrail}
+          onNetworkClick={selectNetwork}
+          onPartClick={handlePartClick}
           onPlace={handlePlace}
           onDraftMove={handleDraftMove}
           onDraftVertexMove={handleDraftVertexMove}
@@ -824,7 +863,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
             <div className="wl-map-actions">
               {(mode === 'finnes' || worklogMode) && <button type="button" className="wl-map-btn dark" onClick={newEntry}>+ Nytt punkt</button>}
               {mode === 'ruter' && <button type="button" className="wl-map-btn" onClick={newRoute}>+ Ny turrute</button>}
-              {mode === 'stinettverk' && <button type="button" className="wl-map-btn dark" onClick={newTrail}>+ Ny sti</button>}
+              {mode === 'stinettverk' && network && <button type="button" className="wl-map-btn dark" onClick={() => addNetworkPath(network)}>+ Legg til sti</button>}
+              {mode === 'stinettverk' && <button type="button" className="wl-map-btn" onClick={newNetwork}>+ Nytt stinettverk</button>}
               {worklogMode && <button type="button" className="wl-map-btn" onClick={newArea}>+ Nytt område</button>}
               {(worklogMode || mode === 'grunneiere') && <button type="button" className="wl-map-btn" onClick={newOwner}>+ Ny eiendom</button>}
             </div>
@@ -832,7 +872,9 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
           {drawing ? (
             <div className={`wl-place-banner ${placing ? 'active' : ''}`}>
-              <span>{placing
+              <span>{placing && edit.kind === 'network-path' && drawCount === 0
+                ? 'Trykk på en sti i nettverket for å starte'
+                : placing
                 ? `${drawCount} punkter · klikk i kartet for å legge til${drawGeom === 'poly' && drawCount >= GEOM_MIN.poly ? ', eller klikk første punkt for å lukke' : ''}`
                 : `${drawCount} punkter plassert`}</span>
               {placing && drawCount > 0 && <button type="button" onClick={undoPoint}>Angre siste</button>}
@@ -840,7 +882,11 @@ export default function AdminApp({ userEmail, onSignOut }) {
                 ? <button type="button" disabled={drawCount < GEOM_MIN[drawGeom]} onClick={finishDrawing}>Fullfør</button>
                 : <button type="button" onClick={restartDrawing}>Tegn på nytt</button>}
             </div>
-          ) : edit && edit.kind !== 'owner' && (
+          ) : edit?.kind === 'network-remove' ? (
+            <div className="wl-place-banner active">
+              <span>{edit.draft.part == null ? 'Trykk på biten du vil fjerne' : 'Trykk på en annen bit for å velge den i stedet'}</span>
+            </div>
+          ) : edit && edit.kind !== 'owner' && !isNetworkEdit(edit) && (
             <div className={`wl-place-banner ${placing ? 'active' : ''}`}>
               <span>{placing ? `Klikk i kartet for å plassere ${placeName}` : `Dra markøren for å justere ${placeName}`}</span>
               <button type="button" onClick={() => setPlacing((p) => !p)}>{placing ? 'Avbryt' : 'Plasser på nytt'}</button>
