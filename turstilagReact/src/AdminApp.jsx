@@ -515,7 +515,13 @@ export default function AdminApp({ userEmail, onSignOut }) {
         const draft = { ...edit.draft, hub: edit.draft.hub || (first ? nearestArea(areas, first) : '') || '' }
         const id = await saveNetwork(original, draft)
         if (!original) {
-          await addPath(id, edit.draft.points, snapM, { color: edit.draft.color, kind: edit.draft.kind })
+          try {
+            await addPath(id, edit.draft.points, snapM, { color: edit.draft.color, kind: edit.draft.kind })
+          } catch (error) {
+            // Don't leave an empty network behind when its first path couldn't be saved
+            await deleteNetwork({ id }).catch(() => {})
+            throw error
+          }
         } else {
           // Only send the lines back when a vertex was actually moved, so a rename never re-merges them
           if (JSON.stringify(edit.draft.segments) !== JSON.stringify(original.segments)) await setNetworkGeometry(id, edit.draft.segments, snapM)
