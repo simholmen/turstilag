@@ -16,7 +16,7 @@ import {
   GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, needsRedraw, saveArea, saveEntry,
 } from './models/worklog'
 import {
-  ALTERNATIVE_SNAP_M, DIFFICULTY, deleteAlternative, deleteRoute, deleteVariant, missingAlternativeFields, missingRouteFields, missingVariantFields,
+  ALTERNATIVE_SNAP_M, DIFFICULTY, alternativeConflicts, deleteAlternative, deleteRoute, deleteVariant, missingAlternativeFields, missingRouteFields, missingVariantFields,
   moveVariant, nearestOnRoute, routeHasDifficulty, saveAlternative, saveRoute, saveVariant,
 } from './models/routes'
 import {
@@ -559,6 +559,16 @@ export default function AdminApp({ userEmail, onSignOut }) {
       } else if (edit.kind === 'route-alternative') {
         const r = routes.find((x) => x.id === edit.draft.routeId)
         const original = edit.id ? r.alternatives.find((a) => a.id === edit.id) : null
+        // Redrawn so it overlaps another stretch in a variant: say which, and save only when asked again
+        // for the same drawing (the warning is tied to the points it was given for)
+        const pointsKey = JSON.stringify(edit.draft.points)
+        if (edit.draft.overlapWarning?.pointsKey !== pointsKey) {
+          const names = await alternativeConflicts(original, edit.draft, r)
+          if (names.length) {
+            updateDraft({ overlapWarning: { pointsKey, names } })
+            return
+          }
+        }
         await saveAlternative(original, edit.draft, r)
         await refreshRoutes()
         flash(edit.id ? 'Strekningen er oppdatert' : 'Strekningen er lagt til')

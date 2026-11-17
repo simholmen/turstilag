@@ -117,6 +117,8 @@ const rowToVariant = (row, features = [], ownerIds = []) => ({
   features,
   ownerIds,
   alternativeIds: (row.alternative_ids || []).map(String),
+  // Stretches left out because they overlap another in it: the variant needs fixing
+  skipped: row.skipped || 0,
 })
 
 const counts = (features) => ({
@@ -136,7 +138,7 @@ export const rowToRoute = (row, features = [], ownerIds = [], variantRows = [], 
   const latLngs = toLatLngLine(row.geometry)
   const standard = {
     id: null, name: row.variant_name || STANDARD_VARIANT_NAME, difficulty, climb: row.climb || '', desc: '',
-    sortOrder: -Infinity, km, latLngs, features, ownerIds, alternativeIds: [],
+    sortOrder: -Infinity, km, latLngs, features, ownerIds, alternativeIds: [], skipped: 0,
   }
   const variants = [standard, ...variantRows
     .map((v) => rowToVariant(v, v.features, v.ownerIds))
@@ -360,11 +362,25 @@ export const missingVariantFields = (draft) => {
   return missing
 }
 
+const alternativeGeometry = (draft, route) => pointsToLineGeometry(placeAlternative(draft.points, route).points)
+
+// The variants (names) a stretch would overlap another stretch in, if saved as drawn. Only a stretch
+// already in variants can; a new one is in none.
+export const alternativeConflicts = async (original, draft, route) => {
+  if (!original) return []
+  const { data, error } = await supabase.rpc('route_alternative_conflicts', {
+    alternative_id: Number(original.id),
+    line_geojson: alternativeGeometry(draft, route),
+  })
+  if (error) throw error
+  return (data || []).map((row) => row.variant_name)
+}
+
 export const saveAlternative = async (original, draft, route) => {
   const payload = {
     route_id: Number(route.id),
     label: draft.label.trim() || null,
-    geom: pointsToLineGeometry(placeAlternative(draft.points, route).points),
+    geom: alternativeGeometry(draft, route),
   }
   if (!original) {
     const { data, error } = await supabase.from('route_alternatives').insert(payload).select('id').single()
