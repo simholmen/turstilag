@@ -128,7 +128,7 @@ export function VariantEditForm({ edit, route, tried, onCancel, onChange }) {
           </div>
           <div className="wl-place-row">
             <span className="wl-place-text">
-              {previewError || (preview
+              {previewError || (preview?.skipped ? 'Noen av strekningene overlapper – fjern en av dem' : preview
                 ? `${fmtKm(preview.km)} km · ${fmtTime(preview.km, climb)} (Standard: ${fmtKm(route.km)} km)`
                 : 'Velg strekninger for å se lengden')}
             </span>
@@ -169,12 +169,19 @@ export function RouteVariantEditFooter({ edit, route, tried, saving, confirmDele
   const isAlt = edit.kind === 'route-alternative'
   const missing = isAlt ? missingAlternativeFields(edit.draft) : missingVariantFields(edit.draft)
   const using = isAlt && edit.id ? variantsUsing(route, edit.id) : []
+  // Given on the first save of a drawing that overlaps; a second save of the same drawing goes through
+  const warning = isAlt && edit.draft.overlapWarning?.pointsKey === JSON.stringify(edit.draft.points) ? edit.draft.overlapWarning : null
 
   return (
     <div className="wl-footer">
       {tried && missing.length > 0 && <span className="wl-error">Mangler: {missing.join(', ')}</span>}
       {confirmDelete && using.length > 0 && (
         <span className="wl-error">Brukes i {using.map((v) => v.name).join(', ')} – de mister denne strekningen.</span>
+      )}
+      {warning && (
+        <span className="wl-error">
+          Strekningen overlapper nå en annen strekning i {warning.names.join(', ')}. Der blir en av dem utelatt til du retter det.
+        </span>
       )}
       {saveError && <span className="wl-error">{saveError}</span>}
       <div className="wl-row">
@@ -186,7 +193,7 @@ export function RouteVariantEditFooter({ edit, route, tried, saving, confirmDele
         <span className="wl-spacer" />
         <button type="button" className="wl-btn" onClick={onCancel} disabled={saving}>Avbryt</button>
         <button type="button" className="wl-btn primary" onClick={onSave} disabled={saving}>
-          {saving ? 'Lagrer…' : edit.id ? 'Lagre endringer' : isAlt ? 'Lagre strekning' : 'Opprett variant'}
+          {saving ? 'Lagrer…' : warning ? 'Lagre likevel' : edit.id ? 'Lagre endringer' : isAlt ? 'Lagre strekning' : 'Opprett variant'}
         </button>
       </div>
     </div>
@@ -225,7 +232,9 @@ export function RouteVariantsAdmin({ route, onNewAlternative, onEditAlternative,
           <div key={v.id} className="wl-area-row wl-variant-admin-row">
             <button type="button" className="wl-area-row-main wl-link-row" onClick={() => onEditVariant(v)}>
               <span className="wl-area-name">{v.name}</span>
-              <span className="wl-mono">{fmtKm(v.km)} km · {v.alternativeIds.length} strekninger</span>
+              <span className={v.skipped ? 'wl-error' : 'wl-mono'}>
+                {v.skipped ? 'Strekninger overlapper – rediger varianten' : `${fmtKm(v.km)} km · ${v.alternativeIds.length} strekninger`}
+              </span>
             </button>
             <button type="button" className="wl-btn small" disabled={i === 0} onClick={() => onMoveVariant(v.id, -1)} aria-label={`Flytt ${v.name} opp`}>↑</button>
             <button type="button" className="wl-btn small" disabled={i === variants.length - 1} onClick={() => onMoveVariant(v.id, 1)} aria-label={`Flytt ${v.name} ned`}>↓</button>

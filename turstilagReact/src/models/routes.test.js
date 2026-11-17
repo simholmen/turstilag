@@ -207,6 +207,11 @@ describe('variants in the admin', () => {
     expect(variantsUsing(route, '11').map((v) => v.name)).toEqual(['Snarvei'])
   })
 
+  it('flags a variant with stretches left out, never Standard', () => {
+    const flagged = rowToRoute({ id: 1, title: 'x' }, [], [], [{ id: 5, name: 'v', skipped: 1 }])
+    expect(flagged.variants.map((v) => v.skipped)).toEqual([0, 1])
+  })
+
   it('needs a name and a stretch', () => {
     expect(missingVariantFields({ name: ' ', alternativeIds: [] })).toEqual(['navn', 'minst én strekning'])
     expect(missingVariantFields({ name: 'x', alternativeIds: ['1'] })).toEqual([])
