@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
-  PLANK_BG, STRETCH_STYLES, buildAlong, buildStrip, fmtTime, missingRouteFields, pointsToLineGeometry, rowToRoute, stretchStyle, toLatLngLine,
+  PLANK_BG, STRETCH_STYLES, buildAlong, buildStrip, fmtTime, missingRouteFields, pointsToLineGeometry, routeHasDifficulty, routeVariant,
+  rowToRoute, stretchStyle, toLatLngLine, variantForAlternative,
 } = await import('./routes')
 
 describe('line geometry', () => {
@@ -95,5 +96,66 @@ describe('stretch styles', () => {
     expect(stretchStyle('stiforbedring', ['grus'], true)).toBe(STRETCH_STYLES.grus)
     expect(stretchStyle('stiforbedring', [], true)).toBe(STRETCH_STYLES.klopp)
     expect(stretchStyle('annet', [], true).at(-1).color).toBe('#5b6259')
+  })
+})
+
+describe('variants', () => {
+  const feature = (key, kind = 'gjerdeklyver') => ({ key, kind })
+  const route = rowToRoute(
+    { id: 7, title: 'Kodlifjellet', difficulty: 'bla', shape: 'rundtur', km: 5.2, climb: '300 m' },
+    [feature('a')],
+    ['o1'],
+    [
+      { id: 2, name: 'Bratt direkte', difficulty: 'rod', sort_order: 2, km: 4.6, alternative_ids: [11], features: [feature('a'), feature('b')], ownerIds: ['o2'] },
+      { id: 1, name: 'Via nordsida', difficulty: null, climb: '350 m', sort_order: 1, km: 6.1, alternative_ids: [10, 11], features: [feature('c', 'stiforbedring')], ownerIds: [] },
+    ],
+    [{ id: 10, kind: 'avstikker', km: 0.4 }, { id: 11, kind: 'x', km: 0.9 }],
+  )
+
+  it('lists Standard first, then the variants in their order', () => {
+    expect(route.variants.map((v) => v.id)).toEqual([null, '1', '2'])
+    expect(route.variants[0].name).toBe('Standard')
+    expect(route.kmRange).toEqual([4.6, 6.1])
+  })
+
+  it('names Standard after the route when it is named', () => {
+    expect(rowToRoute({ id: 1, title: 'x', variant_name: 'Langs vatnet' }).variants[0].name).toBe('Langs vatnet')
+  })
+
+  it('reads alternative stretches, falling back to omvei', () => {
+    expect(route.alternatives.map((a) => [a.id, a.kind])).toEqual([['10', 'avstikker'], ['11', 'omvei']])
+  })
+
+  it('gives the route as a variant walks it, falling back to the route', () => {
+    const steep = routeVariant(route, '2')
+    expect(steep).toMatchObject({ variantId: '2', km: 4.6, difficulty: 'rod', climb: '300 m', ownerIds: ['o2'], badge: 'Rød · Rundtur', gjerdeCount: 2 })
+    const north = routeVariant(route, '1')
+    expect(north).toMatchObject({ difficulty: 'bla', climb: '350 m', stiforbedringCount: 1, gjerdeCount: 0 })
+    expect(routeVariant(route, null)).toBe(route)
+    expect(routeVariant(route, 'gone')).toBe(route)
+  })
+
+  it('knows every point and property along any variant', () => {
+    expect(route.anyFeatureKeys.sort()).toEqual(['a', 'b', 'c'])
+    expect(route.anyOwnerIds.sort()).toEqual(['o1', 'o2'])
+  })
+
+  it('matches a difficulty any variant has', () => {
+    expect(routeHasDifficulty(route, 'bla')).toBe(true)
+    expect(routeHasDifficulty(route, 'rod')).toBe(true)
+    expect(routeHasDifficulty(route, 'svart')).toBe(false)
+    expect(routeHasDifficulty(route, null)).toBe(true)
+  })
+
+  it('picks the first variant using a tapped stretch', () => {
+    expect(variantForAlternative(route, '11')).toBe('1')
+    expect(variantForAlternative(route, '99')).toBe(null)
+  })
+
+  it('has one variant and one length for a route without any', () => {
+    const plain = rowToRoute({ id: 1, title: 'x', km: 3 })
+    expect(plain.variants).toHaveLength(1)
+    expect(plain.kmRange).toEqual([3, 3])
+    expect(plain.alternatives).toEqual([])
   })
 })

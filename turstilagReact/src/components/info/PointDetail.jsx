@@ -23,7 +23,7 @@ export default function PointDetail({ entry, areas, owners, parcels, routes, onB
   const ownersHere = lngLat
     ? owners.filter((o) => parcels.some((p) => p.ownerId === o.id && pointInGeometry(lngLat, p.geometry)))
     : []
-  const onRoutes = routes.filter((r) => r.features.some((f) => f.key === entry.key))
+  const onRoutes = routes.filter((r) => r.anyFeatureKeys.includes(entry.key))
 
   const facts = [
     sub && { key: entry.subtypes.length > 1 ? 'Typer' : 'Type', value: sub },

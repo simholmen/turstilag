@@ -15,7 +15,7 @@ import { useGeolocation } from './hooks/useGeolocation'
 import {
   GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, needsRedraw, saveArea, saveEntry,
 } from './models/worklog'
-import { deleteRoute, missingRouteFields, saveRoute } from './models/routes'
+import { deleteRoute, missingRouteFields, routeHasDifficulty, saveRoute } from './models/routes'
 import {
   DEFAULT_STYLE, START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
   networkPath, networkStyle, readSnapM, removePart, saveNetwork, setNetworkGeometry, setNetworkStyle, setNetworkStyleAll,
@@ -64,14 +64,16 @@ const readUrl = () => {
     mode,
     point: mode === 'finnes' ? q.get('punkt') : null,
     route: mode === 'ruter' ? q.get('rute') : null,
+    variant: mode === 'ruter' && q.get('rute') ? q.get('variant') : null,
     network: mode === 'stinettverk' ? q.get('nettverk') : null,
   }
 }
 
-const buildSearch = ({ mode, point, route, network }) => {
+const buildSearch = ({ mode, point, route, variant, network }) => {
   const q = new URLSearchParams({ modus: mode })
   if (point) q.set('punkt', point)
   if (route) q.set('rute', route)
+  if (route && variant) q.set('variant', variant)
   if (network) q.set('nettverk', network)
   return `?${q.toString()}`
 }
@@ -170,11 +172,11 @@ export default function AdminApp({ userEmail, onSignOut }) {
   const point = mode === 'finnes' ? entries.find((e) => e.key === nav.point) : null
   const route = mode === 'ruter' ? routes.find((r) => r.id === nav.route) : null
   const network = mode === 'stinettverk' ? networks.find((n) => n.id === nav.network) : null
-  const shownRoutes = difficulty ? routes.filter((r) => r.difficulty === difficulty) : routes
+  const shownRoutes = difficulty ? routes.filter((r) => routeHasDifficulty(r, difficulty)) : routes
 
   const navigate = useCallback((patch) => {
     setNav((prev) => {
-      const next = { ...prev, point: null, route: null, network: null, ...patch }
+      const next = { ...prev, point: null, route: null, variant: null, network: null, ...patch }
       const search = buildSearch(next)
       if (search !== window.location.search) window.history.pushState(null, '', search)
       return next
@@ -237,9 +239,10 @@ export default function AdminApp({ userEmail, onSignOut }) {
     navigate({ mode: 'finnes', point: key })
   }, [navigate])
 
-  const selectRoute = useCallback((id) => {
+  // `variant` picks one of the route's variants; none is Standard
+  const selectRoute = useCallback((id, variant = null) => {
     setOwnerId(null)
-    navigate({ mode: 'ruter', route: id })
+    navigate({ mode: 'ruter', route: id, variant })
   }, [navigate])
 
   const selectNetwork = useCallback((id) => {
@@ -766,6 +769,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
         return (
           <RouteDetail
             route={route}
+            variantId={nav.variant}
+            onSelectVariant={(variant) => selectRoute(route.id, variant)}
             owners={ownerViews}
             onBack={() => navigate({ mode: 'ruter' })}
             onSelectPoint={selectPoint}
@@ -896,6 +901,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
           entryId={worklogMode ? entryId : nav.point}
           ownerId={ownerId}
           routeId={nav.route}
+          variantId={nav.variant}
           networkId={nav.network}
           filter={filter}
           edit={edit}

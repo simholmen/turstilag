@@ -1,15 +1,46 @@
 import { imageUrl } from '../../lib/images'
 import { fmtKm } from '../../models/worklog'
-import { DIFFICULTY, buildAlong, fmtTime } from '../../models/routes'
+import { DIFFICULTY, buildAlong, fmtTime, routeVariant } from '../../models/routes'
 import KindSquare from '../info/KindSquare'
 import AlongStrip from './AlongStrip'
 import pencil from 'lucide-static/icons/pencil.svg?raw'
 
 const PENCIL = pencil.slice(pencil.indexOf('<svg'))
 
+// Which way to walk it, for a route with variants: each with its length and time, the chosen one marked
+function VariantChooser({ route, variantId, onSelect }) {
+  return (
+    <div className="wl-variants" role="radiogroup" aria-label="Velg variant">
+      {route.variants.map((v) => {
+        const on = (variantId ?? null) === v.id
+        const difficulty = v.difficulty || route.difficulty
+        return (
+          <button
+            key={v.id ?? 'standard'}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            className={`wl-variant-row ${on ? 'on' : ''}`}
+            onClick={() => onSelect(v.id)}
+          >
+            <span className="wl-variant-check" aria-hidden="true" />
+            <span className="wl-diff-swatch" style={{ background: DIFFICULTY[difficulty].color }} title={DIFFICULTY[difficulty].label} />
+            <span className="wl-area-row-main">
+              <span className="wl-entry-title">{v.name}</span>
+              {on && v.desc && <span className="wl-variant-desc">{v.desc}</span>}
+            </span>
+            <span className="wl-mono wl-variant-stats">{fmtKm(v.km)} km · {fmtTime(v.km, v.climb || route.climb)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // Route detail (design 2b): stats, the "Langs ruta" strip, and everything along the route in km
-// order. `onEditRoute` is admin-only.
-export default function RouteDetail({ route, owners, onBack, onSelectPoint, onSelectOwner, onEditRoute }) {
+// order — all for the chosen variant (`variantId`, null for Standard). `onEditRoute` is admin-only.
+export default function RouteDetail({ route: wholeRoute, variantId, onSelectVariant, owners, onBack, onSelectPoint, onSelectOwner, onEditRoute }) {
+  const route = routeVariant(wholeRoute, variantId)
   const along = buildAlong(route)
   const routeOwners = owners.filter((o) => route.ownerIds.includes(o.id))
 
@@ -37,6 +68,16 @@ export default function RouteDetail({ route, owners, onBack, onSelectPoint, onSe
         <div><span className="wl-label">Tid</span><strong>{fmtTime(route.km, route.climb)}</strong></div>
         <div><span className="wl-label">Stigning</span><strong>{route.climb || '—'}</strong></div>
       </div>
+
+      {wholeRoute.variants.length > 1 && (
+        <>
+          <div className="wl-heading wl-subheading">
+            <h2 className="wl-h2">Varianter</h2>
+            <span className="wl-mono">Trykk i kartet eller her</span>
+          </div>
+          <VariantChooser route={wholeRoute} variantId={route.variantId} onSelect={onSelectVariant} />
+        </>
+      )}
 
       {route.desc && <p className="wl-area-desc">{route.desc}</p>}
 
