@@ -39,7 +39,8 @@ function VariantChooser({ route, variantId, onSelect }) {
 
 // Route detail (design 2b): stats, the "Langs ruta" strip, and everything along the route in km
 // order — all for the chosen variant (`variantId`, null for Standard). `onEditRoute` is admin-only.
-export default function RouteDetail({ route: wholeRoute, variantId, onSelectVariant, owners, onBack, onSelectPoint, onSelectOwner, onEditRoute }) {
+// `admin` is the admin's stretches-and-variants section, shown under the variant chooser
+export default function RouteDetail({ route: wholeRoute, variantId, onSelectVariant, owners, onBack, onSelectPoint, onSelectOwner, onEditRoute, admin }) {
   const route = routeVariant(wholeRoute, variantId)
   const along = buildAlong(route)
   const routeOwners = owners.filter((o) => route.ownerIds.includes(o.id))
@@ -78,6 +79,8 @@ export default function RouteDetail({ route: wholeRoute, variantId, onSelectVari
           <VariantChooser route={wholeRoute} variantId={route.variantId} onSelect={onSelectVariant} />
         </>
       )}
+
+      {admin}
 
       {route.desc && <p className="wl-area-desc">{route.desc}</p>}
 

@@ -3342,3 +3342,71 @@ textarea.wl-input {
   color: var(--ink-2);
   background: var(--stone);
 }
+
+/* Admin: alternative stretches and variants of a route */
+.wl-area-row.wl-plain-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.wl-area-row.wl-variant-admin-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  cursor: default;
+}
+
+.wl-link-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wl-check-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.wl-check-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+
+.wl-check-row:last-child {
+  border-bottom: none;
+}
+
+.wl-check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
+
+.wl-check-row.off {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wl-kind-chip {
+  align-self: flex-start;
+  cursor: default;
+}
+
+.wl-dashed-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

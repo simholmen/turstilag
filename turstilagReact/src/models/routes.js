@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { deleteImages } from '../lib/images'
 import { pointsToLineGeometry } from './geometry'
+import { START_SNAP_M, nearestOnNetwork } from './networks'
 import { TYPES, fmtKm, subtypesLabel } from './worklog'
 
 export { pointsToLineGeometry }
@@ -293,6 +294,7 @@ export const saveRoute = async (original, draft) => {
     climb: draft.climb.trim() || null,
     direction: draft.direction.trim() || null,
     geom: pointsToLineGeometry(draft.points),
+    variant_name: draft.variantName?.trim() || null,
   }
 
   if (!original) {
@@ -318,4 +320,107 @@ export const missingRouteFields = (draft) => {
   if (!draft.title.trim()) missing.push('navn')
   if (!draft.points || draft.points.length < 2) missing.push('rute i kartet (minst 2 punkter)')
   return missing
+}
+
+// ── Alternative stretches and variants (admin) ─────────────────────────────────────────────────────
+
+// A stretch starts on the route: its first point must be this close and is moved onto it. A last point
+// this close is moved onto it too, and makes the stretch an omvei; further off, it's an avstikker.
+export const ALTERNATIVE_SNAP_M = START_SNAP_M
+
+// The nearest point on the route to `ll`, and how far off it is
+export const nearestOnRoute = (ll, route) => nearestOnNetwork(ll, [route.latLngs])
+
+// The drawn points with their ends put on the route where they reach it, and the kind that makes
+// (null until there are two points). The database reads the kind from the ends the same way.
+export const placeAlternative = (points, route) => {
+  if (points.length < 2) return { points, kind: null }
+  const out = [...points]
+  const first = nearestOnRoute(out[0], route)
+  if (first && first.distM <= ALTERNATIVE_SNAP_M) out[0] = first.ll
+  const last = nearestOnRoute(out[out.length - 1], route)
+  if (last && last.distM <= ALTERNATIVE_SNAP_M) {
+    out[out.length - 1] = last.ll
+    return { points: out, kind: 'omvei' }
+  }
+  return { points: out, kind: 'avstikker' }
+}
+
+export const alternativeName = (route, alt) => alt.label || `Strekning ${route.alternatives.indexOf(alt) + 1}`
+
+// The variants (not Standard) that use a stretch
+export const variantsUsing = (route, alternativeId) => route.variants.filter((v) => v.id && v.alternativeIds.includes(alternativeId))
+
+export const missingAlternativeFields = (draft) => (draft.points.length < 2 ? ['strekning i kartet (minst 2 punkter)'] : [])
+
+export const missingVariantFields = (draft) => {
+  const missing = []
+  if (!draft.name.trim()) missing.push('navn')
+  if (!draft.alternativeIds.length) missing.push('minst én strekning')
+  return missing
+}
+
+export const saveAlternative = async (original, draft, route) => {
+  const payload = {
+    route_id: Number(route.id),
+    label: draft.label.trim() || null,
+    geom: pointsToLineGeometry(placeAlternative(draft.points, route).points),
+  }
+  if (!original) {
+    const { data, error } = await supabase.from('route_alternatives').insert(payload).select('id').single()
+    if (error) throw error
+    return String(data.id)
+  }
+  const { error } = await supabase.from('route_alternatives').update(payload).eq('id', original.id)
+  if (error) throw error
+  return original.id
+}
+
+// Variants that used it lose it with it (ON DELETE CASCADE)
+export const deleteAlternative = async (alt) => {
+  const { error } = await supabase.from('route_alternatives').delete().eq('id', alt.id)
+  if (error) throw error
+}
+
+// The variant and its stretches in one transaction (save_route_variant); returns its id
+export const saveVariant = async (original, draft, route) => {
+  const { data, error } = await supabase.rpc('save_route_variant', {
+    variant_id: original ? Number(original.id) : null,
+    route_id: Number(route.id),
+    name: draft.name.trim(),
+    difficulty: draft.difficulty || null,
+    climb: draft.climb.trim() || null,
+    description: draft.desc.trim() || null,
+    alternative_ids: draft.alternativeIds.map(Number),
+  })
+  if (error) throw error
+  return String(data)
+}
+
+export const deleteVariant = async (variant) => {
+  const { error } = await supabase.from('route_variants').delete().eq('id', variant.id)
+  if (error) throw error
+}
+
+// Moves a variant one place up (-1) or down (+1) among the route's variants, numbering them all anew
+export const moveVariant = async (route, variantId, step) => {
+  const ids = route.variants.filter((v) => v.id).map((v) => v.id)
+  const i = ids.indexOf(variantId)
+  const j = i + step
+  if (i < 0 || j < 0 || j >= ids.length) return
+  ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  const results = await Promise.all(ids.map((id, n) => supabase.from('route_variants').update({ sort_order: n + 1 }).eq('id', id)))
+  const failed = results.find((r) => r.error)
+  if (failed) throw failed.error
+}
+
+// Length and line of a set of stretches before it's saved, from the same database function the views
+// use. `skipped` > 0: the stretches overlap.
+export const previewVariant = async (route, alternativeIds) => {
+  const { data, error } = await supabase.rpc('route_variant_preview', {
+    route_id: Number(route.id),
+    alternative_ids: alternativeIds.map(Number),
+  })
+  if (error) throw error
+  return { km: data?.km || 0, latLngs: toLatLngLine(data?.geometry), skipped: data?.skipped || 0 }
 }

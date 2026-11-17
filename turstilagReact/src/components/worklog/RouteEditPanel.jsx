@@ -67,6 +67,14 @@ export function RouteEditForm({ edit, areas, placing, tried, onCancel, onChange,
           <span className="wl-hint">Står den tom, brukes turområdet nærmest startpunktet.</span>
         </label>
 
+        {draft.hasVariants && (
+          <label className="wl-field">
+            <span className="wl-label">Navn på standardvarianten</span>
+            <input className="wl-input" value={draft.variantName || ''} onChange={set('variantName')} placeholder="Standard" />
+            <span className="wl-hint">Ruta slik den er tegnet her, i lista over varianter.</span>
+          </label>
+        )}
+
         <label className="wl-field">
           <span className="wl-label">Stigning</span>
           <input className="wl-input" value={draft.climb} onChange={set('climb')} placeholder="140 m" />

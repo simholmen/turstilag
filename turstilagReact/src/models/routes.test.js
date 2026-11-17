@@ -4,7 +4,8 @@ vi.mock('../lib/supabase', () => ({ supabase: {} }))
 
 const {
   PLANK_BG, STRETCH_STYLES, buildAlong, buildStrip, fmtTime, missingRouteFields, pointsToLineGeometry, routeHasDifficulty, routeVariant,
-  rowToRoute, stretchStyle, toLatLngLine, variantForAlternative,
+  rowToRoute, stretchStyle, toLatLngLine, variantForAlternative, placeAlternative, variantsUsing, missingVariantFields, missingAlternativeFields,
+  alternativeName,
 } = await import('./routes')
 
 describe('line geometry', () => {
@@ -157,5 +158,57 @@ describe('variants', () => {
     expect(plain.variants).toHaveLength(1)
     expect(plain.kmRange).toEqual([3, 3])
     expect(plain.alternatives).toEqual([])
+  })
+})
+
+describe('drawing an alternative stretch', () => {
+  // A route along latitude 58.77, from 5.85 to 5.86 (about 580 m)
+  const route = rowToRoute({ id: 1, title: 'x', geometry: { type: 'LineString', coordinates: [[5.85, 58.77], [5.86, 58.77]] } })
+
+  it('has no kind before it is a line', () => {
+    expect(placeAlternative([[58.77, 5.852]], route).kind).toBe(null)
+  })
+
+  it('is an omvei when it comes back onto the route, with both ends put on it', () => {
+    const { points, kind } = placeAlternative([[58.77005, 5.852], [58.772, 5.855], [58.77010, 5.858]], route)
+    expect(kind).toBe('omvei')
+    expect(points[0]).toEqual([58.77, 5.852])
+    expect(points[2]).toEqual([58.77, 5.858])
+    expect(points[1]).toEqual([58.772, 5.855])
+  })
+
+  it('is an avstikker when it ends off the route, which is left where it is', () => {
+    const { points, kind } = placeAlternative([[58.77, 5.852], [58.775, 5.852]], route)
+    expect(kind).toBe('avstikker')
+    expect(points[1]).toEqual([58.775, 5.852])
+  })
+
+  it('needs two points', () => {
+    expect(missingAlternativeFields({ points: [[0, 0]] })).toHaveLength(1)
+    expect(missingAlternativeFields({ points: [[0, 0], [1, 1]] })).toEqual([])
+  })
+})
+
+describe('variants in the admin', () => {
+  const route = rowToRoute(
+    { id: 1, title: 'x' },
+    [],
+    [],
+    [{ id: 5, name: 'Via toppen', alternative_ids: [10] }, { id: 6, name: 'Snarvei', alternative_ids: [10, 11] }],
+    [{ id: 10, label: 'Toppen' }, { id: 11, label: '' }],
+  )
+
+  it('names a stretch by its label, else by its place in the list', () => {
+    expect(route.alternatives.map((a) => alternativeName(route, a))).toEqual(['Toppen', 'Strekning 2'])
+  })
+
+  it('knows which variants use a stretch', () => {
+    expect(variantsUsing(route, '10').map((v) => v.name)).toEqual(['Snarvei', 'Via toppen'])
+    expect(variantsUsing(route, '11').map((v) => v.name)).toEqual(['Snarvei'])
+  })
+
+  it('needs a name and a stretch', () => {
+    expect(missingVariantFields({ name: ' ', alternativeIds: [] })).toEqual(['navn', 'minst én strekning'])
+    expect(missingVariantFields({ name: 'x', alternativeIds: ['1'] })).toEqual([])
   })
 })

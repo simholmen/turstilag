@@ -288,7 +288,29 @@ function Markers({
         L.polyline(latLngs, { color, weight: 3, dashArray: '6 6', opacity: 0.9, interactive: false }).addTo(group)
         if (interactive) L.polyline(latLngs, { color, weight: 22, opacity: 0, interactive }).on('click', onClick).addTo(group)
       }
+      // While a stretch or a variant of a route is edited, only that route shows: as drawn, its other
+      // stretches dashed, and for a variant the line it makes on top
+      const subEdit = edit?.kind === 'route-alternative' || edit?.kind === 'route-variant' ? edit : null
       routes.forEach((wholeRoute) => {
+        if (subEdit) {
+          if (wholeRoute.id !== subEdit.draft.routeId || wholeRoute.latLngs.length < 2) return
+          const color = DIFFICULTY[wholeRoute.difficulty].color
+          L.polyline(wholeRoute.latLngs, { color: '#fff', weight: 8, opacity: 0.8, interactive: false }).addTo(group)
+          L.polyline(wholeRoute.latLngs, { color, weight: 4, opacity: 0.7, interactive: false }).addTo(group)
+          wholeRoute.alternatives.forEach((alt) => {
+            if (alt.latLngs.length < 2 || (subEdit.kind === 'route-alternative' && alt.id === subEdit.id)) return
+            const on = subEdit.kind === 'route-variant' && subEdit.draft.alternativeIds.includes(alt.id)
+            L.polyline(alt.latLngs, { color: '#fff', weight: 6, opacity: 0.9, interactive: false }).addTo(group)
+            L.polyline(alt.latLngs, { color, weight: on ? 4 : 3, dashArray: '6 6', opacity: 0.9, interactive: false }).addTo(group)
+          })
+          const preview = subEdit.kind === 'route-variant' && subEdit.draft.alternativeIds.length ? subEdit.draft.preview?.latLngs : null
+          if (preview?.length >= 2) {
+            const previewColor = DIFFICULTY[subEdit.draft.difficulty || wholeRoute.difficulty].color
+            L.polyline(preview, { color: '#fff', weight: 11, interactive: false }).addTo(group)
+            L.polyline(preview, { color: previewColor, weight: 6, interactive: false }).addTo(group)
+          }
+          return
+        }
         if (edit?.kind === 'route' && edit.id === wholeRoute.id) return
         const selected = routeId === wholeRoute.id
         // With a route selected the others are hidden, not faded: a faded line drawn later would sit
@@ -407,7 +429,7 @@ function Markers({
       const closed = drawGeom === 'poly'
       const points = draft.points || []
       const color = edit.kind === 'route' ? DIFFICULTY[draft.difficulty]?.color
-        : edit.kind === 'entry' ? (TYPES[draft.type] || TYPES.annet).color : '#1b2620'
+        : edit.kind === 'entry' ? (TYPES[draft.type] || TYPES.annet).color : draft.color || '#1b2620'
       if (points.length >= 2) {
         const style = { color, weight: closed ? 2 : 4, dashArray: '5 5', fillColor: color, fillOpacity: 0.12, interactive: false }
         ;(closed ? L.polygon(points, style) : L.polyline(points, style)).addTo(group)
