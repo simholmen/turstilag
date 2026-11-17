@@ -21,7 +21,7 @@ export default function NetworkList({ networks, areas, onSelect, onNewNetwork })
       <div className="wl-list">
         {sorted.map((n) => (
           <button type="button" key={n.id} className="wl-area-row wl-trail-row" onClick={() => onSelect(n.id)}>
-            <LineSwatch {...startStyle(n)} width={22} />
+            <LineSwatch {...startStyle(n)} width={30} />
             <span className="wl-area-row-main">
               <span className="wl-area-name">{n.name}</span>
               <span className="wl-mono">{[areaName(n.hubId), plural(junctionCount(n.parts), 'kryss', 'kryss')].filter(Boolean).join(' · ')}</span>

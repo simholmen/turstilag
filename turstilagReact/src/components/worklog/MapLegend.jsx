@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SUBTYPES, TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
-import { LINE_KINDS, TRAIL_COLOR } from '../../models/networks'
+import { LINE_COLORS, LINE_KINDS, TRAIL_COLOR } from '../../models/networks'
 import { LineSwatch } from '../networks/StylePicker'
 import KindSquare from '../info/KindSquare'
 import OwnerSymbol from './OwnerSymbol'
@@ -50,15 +50,20 @@ export function LegendRows({ usedTypes, layers, hasOwners = false, mode = 'arbei
       {worklog && layers.work && <div className="wl-legend-row wl-legend-area"><span className="wl-count-badge">5</span>Turområde · antall</div>}
       {showTrails && (
         <>
-          {/* Stinettverk tells the line types apart; the other modes just show that it is a path */}
+          {/* Stinettverk explains the line types, in a neutral colour, and then what each colour means;
+              the other modes just show that it is a path */}
           {mode === 'stinettverk' ? (
             <>
               {Object.entries(LINE_KINDS).map(([key, k], i) => (
                 <div key={key} className={`wl-legend-row ${i === 0 && types.length ? 'wl-legend-area' : ''}`}>
-                  <LineSwatch kind={key} width={22} />{k.label}
+                  <LineSwatch kind={key} width={30} />{k.label}
                 </div>
               ))}
-              <div className="wl-legend-row"><span className="wl-legend-node" style={{ background: TRAIL_COLOR }} />Kryss</div>
+              {Object.entries(LINE_COLORS).map(([key, c], i) => (
+                <div key={key} className={`wl-legend-row ${i === 0 ? 'wl-legend-area' : ''}`}>
+                  <span className="wl-legend-line wl-legend-colour" style={{ background: c.color }} />{c.meaning}
+                </div>
+              ))}
             </>
           ) : (
             <div className={`wl-legend-row ${types.length ? 'wl-legend-area' : ''}`}>

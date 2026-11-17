@@ -5,7 +5,7 @@ import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
 import { DIFFICULTY, stretchStyle } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
-import { LINE_COLORS, TRAIL_COLOR, lineLayers, networkNodes, networkPath, nodeKey } from '../../models/networks'
+import { LINE_COLORS, LINE_LAYER_ORDER, TRAIL_COLOR, lineLayers, lineScale, networkPath } from '../../models/networks'
 import { snapLineToStretches } from '../../models/geometry'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -108,6 +108,8 @@ function Markers({
 }) {
   const map = useMap()
   const groupRef = useRef(null)
+  // The stinettverk lines drawn, each with what it needs to be restyled when the zoom changes
+  const styledLinesRef = useRef([])
 
   useEffect(() => {
     const group = L.layerGroup().addTo(map)
@@ -119,6 +121,12 @@ function Markers({
     if (placing) onPlace([round(event.latlng.lat), round(event.latlng.lng)])
   })
 
+  // Lines are sized to the zoom; restyle them in place rather than redraw the map
+  useMapEvent('zoomend', () => {
+    const scale = lineScale(map.getZoom())
+    styledLinesRef.current.forEach(({ polyline, style }) => polyline.setStyle(style(scale)))
+  })
+
   useEffect(() => {
     map.getContainer().style.cursor = placing ? 'crosshair' : ''
   }, [map, placing])
@@ -127,6 +135,14 @@ function Markers({
     const group = groupRef.current
     if (!group) return
     group.clearLayers()
+    styledLinesRef.current = []
+    const zoomScale = lineScale(map.getZoom())
+    // A stinettverk line whose style follows the zoom: `style` gives it for a scale
+    const addStyledLine = (line, style, options = {}) => {
+      const polyline = L.polyline(line, { ...style(zoomScale), ...options })
+      styledLinesRef.current.push({ polyline, style })
+      return polyline.addTo(group)
+    }
 
     const interactive = !edit
     const draft = edit?.draft
@@ -184,9 +200,8 @@ function Markers({
     })
 
     // The stinettverk beneath the routes: each stretch in its colour and line type on a white casing,
-    // and in Stinettverk (or while one is being edited) its nodes — dead ends small and hollow,
-    // junctions solid. While picking a bit to remove, that network is drawn part by part instead, each
-    // taking the click, the chosen one in red.
+    // with no markers at its ends or junctions. While picking a bit to remove, that network is drawn
+    // part by part instead, each taking the click, the chosen one in red.
     const editedNetworkId = edit?.kind?.startsWith('network') ? edit.id : null
     const removing = edit?.kind === 'network-remove'
     // Editing an existing network makes its lines draggable
@@ -209,43 +224,16 @@ function Markers({
         } else {
           // While its lines are being dragged, the network is drawn from the draft
           const segments = own && shaping ? edit.draft.segments : n.segments
-          // All halos first, then all lines, so no halo covers a neighbouring stretch's line
+          // Layer by layer across the whole network, so no track or edge covers a neighbouring stretch's line
           const onClick = () => onNetworkClick?.(n.id)
-          ;['halo', 'line'].forEach((layer) => segments.forEach((s) => {
-            const style = lineLayers(s.kind, selected ? 1.5 : 0)[layer]
-            const polyline = L.polyline(s.line, {
-              ...style,
-              color: layer === 'halo' ? '#fff' : LINE_COLORS[s.color].color,
-              opacity: (layer === 'halo' ? 0.9 : 1) * (faded ? 0.45 : 1),
-              interactive,
-            })
+          LINE_LAYER_ORDER.forEach((layer) => segments.forEach((s) => {
+            const style = (scale) => {
+              const layerStyle = lineLayers(s.kind, LINE_COLORS[s.color].color, selected ? 1.5 : 0, scale)[layer]
+              return { ...layerStyle, opacity: layerStyle.opacity * (faded ? 0.45 : 1) }
+            }
+            const polyline = addStyledLine(s.line, style, { interactive })
             if (interactive) polyline.on('click', onClick)
-            polyline.addTo(group)
           }))
-        }
-        if (mode === 'stinettverk' || own) {
-          // Junctions come from the parts; while dragging, from the stretches being dragged
-          const nodeLines = own && shaping ? edit.draft.segments.map((s) => s.line) : n.parts
-          // Each node in the colour of the stretch it lies on: a junction as a dot ringed in white, a dead
-          // end as a ring
-          const colorAt = new Map()
-          ;(own && shaping ? edit.draft.segments : n.segments).forEach((s) => s.line.forEach((ll) => {
-            const key = nodeKey(ll)
-            if (!colorAt.has(key)) colorAt.set(key, LINE_COLORS[s.color].color)
-          }))
-          networkNodes(nodeLines).forEach((node) => {
-            const color = colorAt.get(node.key) || TRAIL_COLOR
-            const junction = node.degree >= 3
-            L.circleMarker(node.ll, {
-              radius: junction ? 5.5 : 4,
-              color: junction ? '#fff' : color,
-              weight: junction ? 2 : 2.5,
-              fillColor: junction ? color : '#fff',
-              fillOpacity: faded ? 0.5 : 1,
-              opacity: faded ? 0.5 : 1,
-              interactive: false,
-            }).addTo(group)
-          })
         }
       })
     }
@@ -257,9 +245,7 @@ function Markers({
       const path = target && from && to ? networkPath(target.parts, from, to) : null
       if (path) {
         L.polyline(path, { color: '#ffd84a', weight: 14, opacity: 0.85, interactive: false }).addTo(group)
-        const { halo, line } = lineLayers(kind, 1)
-        L.polyline(path, { ...halo, color: '#fff', interactive: false }).addTo(group)
-        L.polyline(path, { ...line, color: LINE_COLORS[color]?.color || TRAIL_COLOR, interactive: false }).addTo(group)
+        LINE_LAYER_ORDER.forEach((layer) => addStyledLine(path, (scale) => lineLayers(kind, LINE_COLORS[color]?.color || TRAIL_COLOR, 1, scale)[layer], { interactive: false }))
       }
       ;[from, to].filter(Boolean).forEach((ll) => {
         L.circleMarker(ll, { radius: 7, color: '#1b2620', weight: 3, fillColor: '#ffd84a', fillOpacity: 1, interactive: false }).addTo(group)
@@ -422,7 +408,7 @@ function Markers({
         }
       }
     }
-  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape])
+  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, map])
 
   return null
 }

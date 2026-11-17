@@ -1570,6 +1570,12 @@ textarea {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(27, 38, 32, 0.12);
 }
 
+/* A stinettverk colour in the legend: as wide as the line samples above it */
+.wl-legend-line.wl-legend-colour {
+  width: 26px;
+  margin: 0 2px;
+}
+
 .wl-legend-node {
   flex: none;
   width: 10px;
@@ -1599,6 +1605,24 @@ textarea {
 
 .wl-kind-picker {
   margin-top: 6px;
+}
+
+/* The colours carry their full meaning, too long to sit side by side: one per row */
+.wl-colour-picker {
+  flex-direction: column;
+}
+
+.wl-segmented.wl-colour-picker > button {
+  flex: none;
+  justify-content: flex-start;
+  min-height: 38px;
+  padding: 0 12px;
+  border-left: none;
+  border-top: 1px solid var(--line-soft);
+}
+
+.wl-segmented.wl-colour-picker > button:first-child {
+  border-top: none;
 }
 
 .wl-network-styles {

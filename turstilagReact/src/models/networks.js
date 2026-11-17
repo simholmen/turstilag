@@ -8,30 +8,60 @@ import { distanceM, pointsToLineGeometry } from './geometry'
 export const TRAIL_COLOR = '#3b3128'
 
 // Every stretch of a network has a colour and a line type (trail_network_segments), so a tursti can
-// turn into a turvei and back. The dashes are for the map and the legend alike.
+// turn into a turvei and back. The dashes are for the map and the legend alike. `meaning` is what a
+// colour stands for, in the legend.
 export const LINE_COLORS = {
-  rod: { label: 'Rød', color: '#c8242b' },
-  bla: { label: 'Blå', color: '#1f63b4' },
-  morkebla: { label: 'Mørkeblå', color: '#1b2a5c' },
+  rod: { label: 'Rød', meaning: 'Rød merket sti', color: '#d7262e' },
+  bla: { label: 'Blå', meaning: 'Blå merket sti', color: '#2f8fdc' },
+  morkebla: { label: 'Mørkeblå', meaning: 'Sti utenom beitesesong', color: '#1637a8' },
 }
-// Like a topographic map: a vei solid, a turvei in long dashes and a tursti in short ones. Dashes have
-// square ends so they read as strokes, not dots.
+// Like a modern trail map: the fuller the line, the wider it is overall. A vei is solid and widest,
+// a turvei in long dashes and a tursti in round dots, narrowest. Dashes have round caps, which reach
+// half the weight past each end, so the pattern lengths are shorter than the dashes look; a dash of
+// almost nothing is a dot as wide as the line. `halo` and `track` are how much wider the white edge
+// and the dark track are than the line — the dots get a thinner edge so they don't read as rings.
 export const LINE_KINDS = {
-  vei: { label: 'Merket vei', dash: null, weight: 4, cap: 'round' },
-  turvei: { label: 'Turvei', dash: '14 7', weight: 3.5, cap: 'butt' },
-  tursti: { label: 'Merket tursti', dash: '7 5', weight: 3.5, cap: 'butt' },
+  vei: { label: 'Merket vei', dash: null, weight: 6, halo: 2.5, track: 4.5 },
+  turvei: { label: 'Turvei', dash: '16 9', weight: 4.5, halo: 2.5, track: 4.5 },
+  tursti: { label: 'Merket tursti', dash: '0.1 9', weight: 5, halo: 1.4, track: 3 },
 }
 export const DEFAULT_STYLE = { color: 'rod', kind: 'tursti' }
 
-// How a line type is drawn, bottom first: a white halo, then the line in its colour, both in the same
-// pattern so each dash gets an edge of its own instead of lying on a white band. The map and
-// LineSwatch both draw from this. `extra` thickens a selected network.
-export const lineLayers = (kind, extra = 0) => {
-  const { dash, weight, cap } = LINE_KINDS[kind] || LINE_KINDS[DEFAULT_STYLE.kind]
+// How a stretch is drawn, bottom first: a solid track in a dark shade of its colour, so the line
+// stands out on the busy topographic map and a dashed trail still reads as one path; a white edge in
+// the line's own pattern, so each dash stands clear of the track; and the line itself. The map and
+// LineSwatch both draw from this. `extra` thickens a selected network; `scale` sizes the whole line,
+// widths and dashes alike, to the zoom (see lineScale).
+export const LINE_LAYER_ORDER = ['track', 'halo', 'line']
+// The colour `hex` darkened towards black, `f` of the way back from it (0 black, 1 unchanged)
+const shade = (hex, f) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('')}`
+
+export const lineLayers = (kind, color, extra = 0, scale = 1) => {
+  const { dash, weight, halo, track } = LINE_KINDS[kind] || LINE_KINDS[DEFAULT_STYLE.kind]
+  const w = (weight + extra) * scale
+  const dashArray = dash && dash.split(' ').map((n) => Math.max(0.1, +(n * scale).toFixed(1))).join(' ')
+  const common = { lineCap: 'round', lineJoin: 'round' }
   return {
-    halo: { weight: weight + 3 + extra, dashArray: dash, lineCap: cap, lineJoin: 'round' },
-    line: { weight: weight + extra, dashArray: dash, lineCap: cap, lineJoin: 'round' },
+    track: { ...common, weight: w + track * scale, dashArray: null, color: shade(color, 0.45), opacity: 0.75 },
+    halo: { ...common, weight: w + halo * scale, dashArray, color: '#fff', opacity: 1 },
+    line: { ...common, weight: w, dashArray, color, opacity: 1 },
   }
+}
+
+// How big the lines are drawn at a zoom level: full size (as in the legend) at 15, thinner and with
+// tighter dashes when zoomed out so they don't swamp the map, a little heavier zoomed far in. Straight
+// lines between these stops.
+const SCALE_STOPS = [[9, 0.4], [12, 0.6], [15, 1], [17, 1.3], [19, 1.5]]
+export const lineScale = (zoom) => {
+  if (zoom <= SCALE_STOPS[0][0]) return SCALE_STOPS[0][1]
+  for (let i = 1; i < SCALE_STOPS.length; i += 1) {
+    const [z1, s1] = SCALE_STOPS[i]
+    if (zoom <= z1) {
+      const [z0, s0] = SCALE_STOPS[i - 1]
+      return s0 + ((zoom - z0) / (z1 - z0)) * (s1 - s0)
+    }
+  }
+  return SCALE_STOPS[SCALE_STOPS.length - 1][1]
 }
 
 // "Legg til sti" starts on the network: the first click must be this close to it, and is moved onto it,
