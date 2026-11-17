@@ -285,7 +285,10 @@ function Markers({
         if (edit?.kind === 'route' && edit.id === route.id) return
         if (route.latLngs.length < 2) return
         const selected = routeId === route.id
-        const faded = (routeId && !selected) || Boolean(edit)
+        // With a route selected the others are hidden, not faded: a faded line drawn later would sit
+        // on top of the selected one where they share a path. While editing they stay, faded, to trace by.
+        if (routeId && !selected && !edit) return
+        const faded = Boolean(edit)
         const color = DIFFICULTY[route.difficulty].color
         // Drawn through the exact vertices of the facilitated stretches along it, so the two
         // don't show up as parallel lines where they were digitised a few metres apart
