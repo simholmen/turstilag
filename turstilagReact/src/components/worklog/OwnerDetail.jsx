@@ -22,7 +22,7 @@ export default function OwnerDetail({
   onSelectArea, onSelectRoute, onEditOwner, onNewParcel, onEditParcel,
 }) {
   const ownerAreas = areas.filter((a) => owner.hubIds.includes(a.id))
-  const ownerRoutes = routes.filter((r) => r.ownerIds.includes(owner.id))
+  const ownerRoutes = routes.filter((r) => r.anyOwnerIds.includes(owner.id))
   const here = Boolean(userLocation) && owner.parcels.some((p) => pointInGeometry([userLocation[1], userLocation[0]], p.geometry))
   const areaName = (id) => areas.find((a) => a.id === id)?.name
   const points = userLocation ? sortEntriesByDistance(owner.list, userLocation) : owner.list

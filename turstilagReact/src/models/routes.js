@@ -89,9 +89,58 @@ const rowToFeature = (row) => ({
   lengthM: row.length_m || 0,
 })
 
-export const rowToRoute = (row, features = [], ownerIds = []) => {
+// Alternative stretches: an omvei comes back onto the route and replaces the part between its ends, an
+// avstikker leaves it and is walked out and back. Which one is worked out by the database.
+export const ALTERNATIVE_KINDS = { omvei: 'Omvei', avstikker: 'Avstikker' }
+export const STANDARD_VARIANT_NAME = 'Standard'
+
+const rowToAlternative = (row) => ({
+  id: String(row.id),
+  label: row.label || '',
+  kind: ALTERNATIVE_KINDS[row.kind] ? row.kind : 'omvei',
+  km: row.km || 0,
+  latLngs: toLatLngLine(row.geometry),
+  detached: Boolean(row.detached),
+})
+
+// difficulty and climb are null/'' where the variant goes by the route's (see routeVariant)
+const rowToVariant = (row, features = [], ownerIds = []) => ({
+  id: String(row.id),
+  name: row.name,
+  difficulty: DIFFICULTY[row.difficulty] ? row.difficulty : null,
+  climb: row.climb || '',
+  desc: row.description || '',
+  sortOrder: row.sort_order || 0,
+  km: row.km || 0,
+  latLngs: toLatLngLine(row.geometry),
+  features,
+  ownerIds,
+  alternativeIds: (row.alternative_ids || []).map(String),
+})
+
+const counts = (features) => ({
+  gjerdeCount: features.filter((f) => f.kind === 'gjerdeklyver').length,
+  stiforbedringCount: features.filter((f) => f.kind === 'stiforbedring').length,
+})
+
+const badgeOf = (difficulty, shape) => `${DIFFICULTY[difficulty].label} · ${SHAPES[shape]}`
+
+// The route as stored is its Standard variant: `km`, `latLngs`, `features` and the rest are always
+// Standard's, so code that knows nothing of variants keeps working. `variants` lists every way to walk
+// it, Standard first (id null); routeVariant() gives the route as another variant walks it.
+export const rowToRoute = (row, features = [], ownerIds = [], variantRows = [], alternativeRows = []) => {
   const difficulty = DIFFICULTY[row.difficulty] ? row.difficulty : 'gronn'
   const shape = SHAPES[row.shape] ? row.shape : 'rundtur'
+  const km = row.km || 0
+  const latLngs = toLatLngLine(row.geometry)
+  const standard = {
+    id: null, name: row.variant_name || STANDARD_VARIANT_NAME, difficulty, climb: row.climb || '', desc: '',
+    sortOrder: -Infinity, km, latLngs, features, ownerIds, alternativeIds: [],
+  }
+  const variants = [standard, ...variantRows
+    .map((v) => rowToVariant(v, v.features, v.ownerIds))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'nb'))]
+  const kms = variants.map((v) => v.km)
   return {
     id: String(row.id),
     hubId: row.hub_id ? String(row.hub_id) : null,
@@ -102,37 +151,89 @@ export const rowToRoute = (row, features = [], ownerIds = []) => {
     shape,
     climb: row.climb || '',
     direction: row.direction || '',
-    km: row.km || 0,
-    latLngs: toLatLngLine(row.geometry),
-    badge: `${DIFFICULTY[difficulty].label} · ${SHAPES[shape]}`,
+    km,
+    latLngs,
+    badge: badgeOf(difficulty, shape),
     features,
     ownerIds,
-    gjerdeCount: features.filter((f) => f.kind === 'gjerdeklyver').length,
-    stiforbedringCount: features.filter((f) => f.kind === 'stiforbedring').length,
+    ...counts(features),
+    variantId: null,
+    variantName: row.variant_name || '',
+    variants,
+    alternatives: alternativeRows.map(rowToAlternative),
+    kmRange: [Math.min(...kms), Math.max(...kms)],
+    // Along any of its variants: which routes pass a point or a property
+    anyFeatureKeys: [...new Set(variants.flatMap((v) => v.features.map((f) => f.key)))],
+    anyOwnerIds: [...new Set(variants.flatMap((v) => v.ownerIds))],
     updatedAt: row.updated_at,
   }
 }
 
+// The route as `variantId` walks it: its length, line, difficulty, climb and what lies along it. An
+// unknown or null id gives Standard, the route itself.
+export const routeVariant = (route, variantId) => {
+  const v = variantId ? route.variants.find((x) => x.id === variantId) : null
+  if (!v) return route
+  const difficulty = v.difficulty || route.difficulty
+  return {
+    ...route,
+    variantId: v.id,
+    difficulty,
+    climb: v.climb || route.climb,
+    km: v.km,
+    latLngs: v.latLngs,
+    features: v.features,
+    ownerIds: v.ownerIds,
+    badge: badgeOf(difficulty, route.shape),
+    ...counts(v.features),
+  }
+}
+
+// A route matches a difficulty if any of its variants is of it
+export const routeHasDifficulty = (route, difficulty) => !difficulty
+  || route.variants.some((v) => (v.difficulty || route.difficulty) === difficulty)
+
+// The variant a tap on an alternative stretch picks: the first, in the list's order, that uses it
+export const variantForAlternative = (route, alternativeId) => route.variants
+  .find((v) => v.alternativeIds.includes(alternativeId))?.id ?? null
+
+const byRouteVariant = (rows, map = (r) => r) => {
+  const grouped = new Map()
+  rows.forEach((row) => {
+    const key = `${row.route_id}:${row.variant_id ?? ''}`
+    if (!grouped.has(key)) grouped.set(key, [])
+    grouped.get(key).push(map(row))
+  })
+  return (routeId, variantId) => grouped.get(`${routeId}:${variantId ?? ''}`) || []
+}
+
 export const loadRoutes = async () => {
-  const [
-    { data: routeRows, error: routeError },
-    { data: featureRows, error: featureError },
-    { data: ownerRows, error: ownerError },
-  ] = await Promise.all([
+  const results = await Promise.all([
     supabase.from('routes_geojson').select('*'),
     supabase.from('route_features').select('*'),
     supabase.from('route_owners').select('*'),
+    supabase.from('route_variants_geojson').select('*'),
+    supabase.from('route_alternatives_geojson').select('*'),
   ])
-  if (routeError) throw routeError
-  if (featureError) throw featureError
-  if (ownerError) throw ownerError
+  const failed = results.find((r) => r.error)
+  if (failed) throw failed.error
+  const [routeRows, featureRows, ownerRows, variantRows, alternativeRows] = results.map((r) => r.data || [])
 
-  const features = (featureRows || []).map(rowToFeature)
-  return (routeRows || []).map((row) => rowToRoute(
-    row,
-    features.filter((f) => f.routeId === String(row.id)),
-    (ownerRows || []).filter((o) => o.route_id === String(row.id)).map((o) => String(o.owner_id)),
-  ))
+  const featuresOf = byRouteVariant(featureRows, rowToFeature)
+  const ownersOf = byRouteVariant(ownerRows, (o) => String(o.owner_id))
+  return routeRows.map((row) => {
+    const id = String(row.id)
+    const variants = variantRows
+      .filter((v) => String(v.route_id) === id)
+      .map((v) => ({ ...v, features: featuresOf(id, String(v.id)), ownerIds: ownersOf(id, String(v.id)) }))
+    return rowToRoute(
+      row,
+      featuresOf(id, null),
+      ownersOf(id, null),
+      variants,
+      alternativeRows.filter((a) => String(a.route_id) === id),
+    )
+  })
 }
 
 // Everything along a route in km order. Linear features (km_fra/km_til) are spans, the rest points.

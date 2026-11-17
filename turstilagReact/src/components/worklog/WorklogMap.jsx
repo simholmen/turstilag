@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AttributionControl, MapContainer, TileLayer, useMap, useMapEvent } from 'react-leaflet'
 import pinIcon from 'lucide-static/icons/map-pin.svg?raw'
 import { TYPES } from '../../models/worklog'
-import { DIFFICULTY, stretchStyle } from '../../models/routes'
+import { DIFFICULTY, routeVariant, stretchStyle, variantForAlternative } from '../../models/routes'
 import { OWNER_ICON } from '../../models/owners'
 import { LINE_COLORS, LINE_LAYER_ORDER, TRAIL_COLOR, lineLayers, lineScale, networkPath } from '../../models/networks'
 import { snapLineToStretches } from '../../models/geometry'
@@ -102,7 +102,7 @@ const addGeometry = (group, entry, options) => {
 }
 
 function Markers({
-  mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing,
+  mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, variantId, networkId, filter, edit, drawGeom, placing,
   onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert,
   onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape,
 }) {
@@ -190,7 +190,7 @@ function Markers({
     // Sign-symbol modes: the kinds toggled on in the map chips, plus in Turruter whatever lies along
     // the selected route (Hva finnes passes entries already filtered by its sidebar too)
     const route = mode === 'ruter' && routes.find((r) => r.id === routeId)
-    const along = route ? new Set(route.features.map((f) => f.key)) : null
+    const along = route ? new Set(routeVariant(route, variantId).features.map((f) => f.key)) : null
     const shown = worklogMode ? [] : entries.filter((e) => layers.kinds.includes(e.type) || along?.has(e.key))
 
     // Non-point features first so they sit beneath the route lines
@@ -281,15 +281,37 @@ function Markers({
 
     if (layers.routes) {
       const entryByKey = new Map(entries.map((e) => [e.key, e]))
-      routes.forEach((route) => {
-        if (edit?.kind === 'route' && edit.id === route.id) return
-        if (route.latLngs.length < 2) return
-        const selected = routeId === route.id
+      // A thin line in the route's colour, dashed, with a wide invisible line over it to tap: the ways
+      // the selected route can be walked other than the chosen one
+      const addOtherWay = (latLngs, color, onClick) => {
+        L.polyline(latLngs, { color: '#fff', weight: 6, opacity: 0.9, interactive: false }).addTo(group)
+        L.polyline(latLngs, { color, weight: 3, dashArray: '6 6', opacity: 0.9, interactive: false }).addTo(group)
+        if (interactive) L.polyline(latLngs, { color, weight: 22, opacity: 0, interactive }).on('click', onClick).addTo(group)
+      }
+      routes.forEach((wholeRoute) => {
+        if (edit?.kind === 'route' && edit.id === wholeRoute.id) return
+        const selected = routeId === wholeRoute.id
         // With a route selected the others are hidden, not faded: a faded line drawn later would sit
         // on top of the selected one where they share a path. While editing they stay, faded, to trace by.
         if (routeId && !selected && !edit) return
+        // The selected route is drawn as its chosen variant walks it, the others as Standard
+        const route = selected ? routeVariant(wholeRoute, variantId) : wholeRoute
+        if (route.latLngs.length < 2) return
         const faded = Boolean(edit)
         const color = DIFFICULTY[route.difficulty].color
+
+        if (selected && !edit && wholeRoute.variants.length > 1) {
+          // Standard under a variant, so the bits the variant leaves out can be tapped back to
+          if (route.variantId) addOtherWay(wholeRoute.latLngs, DIFFICULTY[wholeRoute.difficulty].color, () => onRouteClick?.(wholeRoute.id, null))
+          const chosen = new Set(wholeRoute.variants.find((v) => v.id === route.variantId)?.alternativeIds || [])
+          wholeRoute.alternatives.forEach((alt) => {
+            const variant = variantForAlternative(wholeRoute, alt.id)
+            if (chosen.has(alt.id) || !variant || alt.latLngs.length < 2) return
+            const v = wholeRoute.variants.find((x) => x.id === variant)
+            addOtherWay(alt.latLngs, DIFFICULTY[v.difficulty || wholeRoute.difficulty].color, () => onRouteClick?.(wholeRoute.id, variant))
+          })
+        }
+
         // Drawn through the exact vertices of the facilitated stretches along it, so the two
         // don't show up as parallel lines where they were digitised a few metres apart
         const stretches = route.features
@@ -301,13 +323,18 @@ function Markers({
         // White casing underneath so the route separates from the basemap's own paths
         const casing = L.polyline(latLngs, { color: '#fff', weight: selected ? 11 : 8, opacity: faded ? 0.6 : 1, interactive })
         const line = L.polyline(latLngs, { color, weight: selected ? 6 : 4, opacity: faded ? 0.45 : 1, interactive })
+        // Tapping the chosen line keeps the variant. It gets a tap area as wide as the other ways', on
+        // top, so a tap beside it where they share a path doesn't switch to one of them.
+        const onClick = () => onRouteClick?.(wholeRoute.id, selected ? route.variantId : null)
+        const hit = interactive && selected && L.polyline(latLngs, { color, weight: 22, opacity: 0, interactive }).on('click', onClick)
         if (interactive) {
-          casing.on('click', () => onRouteClick?.(route.id))
-          line.on('click', () => onRouteClick?.(route.id))
+          casing.on('click', onClick)
+          line.on('click', onClick)
         }
         casing.addTo(group)
         line.addTo(group)
-        if (selected) { casing.bringToFront(); line.bringToFront() }
+        if (hit) hit.addTo(group)
+        if (selected) { casing.bringToFront(); line.bringToFront(); if (hit) hit.bringToFront() }
       })
     }
 
@@ -411,7 +438,7 @@ function Markers({
         }
       }
     }
-  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, map])
+  }, [mode, areas, entries, parcels, owners, routes, networks, layers, areaId, entryId, ownerId, routeId, variantId, networkId, filter, edit, drawGeom, placing, onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, map])
 
   return null
 }
@@ -448,7 +475,7 @@ function Viewport({ view, isMobile }) {
 // drawn for the kinds in `layers.kinds`. `drawGeom` is set while an edit is being drawn vertex by vertex.
 export default function WorklogMap({
   mode = 'arbeidslogg', areas, entries, parcels = [], owners = [], routes = [], networks = [], layers = { kinds: [], work: true, owners: true, routes: false },
-  areaId, entryId, ownerId, routeId, networkId, filter, edit, drawGeom, placing, version, isMobile, geo,
+  areaId, entryId, ownerId, routeId, variantId, networkId, filter, edit, drawGeom, placing, version, isMobile, geo,
   onAreaClick, onEntryClick, onOwnerClick, onRouteClick, onNetworkClick, onPartClick, onNetworkVertexMove, onNetworkVertexInsert,
   onPlace, onDraftMove, onDraftVertexMove, onInsertVertex, onCloseShape, children,
 }) {
@@ -473,7 +500,8 @@ export default function WorklogMap({
     }
 
     const route = routeId && routes.find((r) => r.id === routeId)
-    if (route) return { key: `route:${routeId}`, fit: route.latLngs }
+    // The whole route with every alternative stretch; picking a variant doesn't move the map
+    if (route) return { key: `route:${routeId}`, fit: [...route.latLngs, ...route.alternatives.flatMap((a) => a.latLngs)] }
 
     const network = networkId && networks.find((n) => n.id === networkId)
     if (network?.parts.length) return { key: `network:${networkId}`, fit: network.parts.flat() }
@@ -531,6 +559,7 @@ export default function WorklogMap({
           mode={mode}
           routes={routes}
           routeId={routeId}
+          variantId={variantId}
           networks={networks}
           networkId={networkId}
           drawGeom={drawGeom}

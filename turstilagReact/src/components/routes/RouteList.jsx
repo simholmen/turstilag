@@ -1,15 +1,25 @@
 import { imageUrl } from '../../lib/images'
 import { TYPES, fmtKm } from '../../models/worklog'
-import { DIFFICULTY, SHAPES, fmtTime } from '../../models/routes'
+import { DIFFICULTY, SHAPES, fmtTime, routeHasDifficulty } from '../../models/routes'
 
 const Icon = ({ html }) => <span className="wl-ico" dangerouslySetInnerHTML={{ __html: html }} />
 
+// The shortest and longest variant, or the one length when they're the same. The time range drops the
+// second "ca." ("ca. 1 t 30–2 t").
+const kmText = ([min, max]) => (fmtKm(min) === fmtKm(max) ? fmtKm(min) : `${fmtKm(min)}–${fmtKm(max)}`)
+const timeText = (route) => {
+  const times = route.variants.map((v) => ({ km: v.km, t: fmtTime(v.km, v.climb || route.climb) }))
+  const shortest = times.reduce((a, b) => (b.km < a.km ? b : a)).t
+  const longest = times.reduce((a, b) => (b.km > a.km ? b : a)).t
+  return shortest === longest ? shortest : `${shortest}–${longest.replace(/^ca\. /, '')}`
+}
+
 // Turruter list. Lengths and point counts all come from the database views. `onNewRoute` is admin-only.
 export default function RouteList({ routes, difficulty, onDifficulty, onSelect, onNewRoute, heading = true }) {
-  const shown = difficulty ? routes.filter((r) => r.difficulty === difficulty) : routes
+  const shown = routes.filter((r) => routeHasDifficulty(r, difficulty))
   const totalKm = routes.reduce((sum, r) => sum + r.km, 0)
   const counts = {}
-  routes.forEach((r) => { counts[r.difficulty] = (counts[r.difficulty] || 0) + 1 })
+  Object.keys(DIFFICULTY).forEach((key) => { counts[key] = routes.filter((r) => routeHasDifficulty(r, key)).length })
 
   return (
     <>
@@ -46,7 +56,7 @@ export default function RouteList({ routes, difficulty, onDifficulty, onSelect, 
             </div>
             <div className="wl-area-row-main">
               <span className="wl-area-name">{route.title}</span>
-              <span className="wl-mono">{DIFFICULTY[route.difficulty].label} · {SHAPES[route.shape]} · {fmtTime(route.km, route.climb)}</span>
+              <span className="wl-mono">{DIFFICULTY[route.difficulty].label} · {SHAPES[route.shape]} · {timeText(route)}</span>
               <div className="wl-route-badges">
                 <span className="wl-route-badge" title="Krysningspunkter" style={{ background: TYPES.gjerdeklyver.color }}>
                   <Icon html={TYPES.gjerdeklyver.icon} />{route.gjerdeCount}
@@ -54,10 +64,13 @@ export default function RouteList({ routes, difficulty, onDifficulty, onSelect, 
                 <span className="wl-route-badge" title="Stiforbedringer" style={{ background: TYPES.stiforbedring.color }}>
                   <Icon html={TYPES.stiforbedring.icon} />{route.stiforbedringCount}
                 </span>
+                {route.variants.length > 1 && (
+                  <span className="wl-route-badge wl-route-badge-plain">{route.variants.length} varianter</span>
+                )}
               </div>
             </div>
             <div className="wl-area-count">
-              <span className="wl-big-number">{fmtKm(route.km)}</span>
+              <span className="wl-big-number">{kmText(route.kmRange)}</span>
               <span className="wl-mono small">km</span>
             </div>
           </button>
