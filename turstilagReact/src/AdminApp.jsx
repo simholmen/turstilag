@@ -15,7 +15,10 @@ import { useGeolocation } from './hooks/useGeolocation'
 import {
   GEOM_MIN, buildAreaViews, deleteArea, deleteEntry, entryGeomType, missingFields, needsRedraw, saveArea, saveEntry,
 } from './models/worklog'
-import { deleteRoute, missingRouteFields, routeHasDifficulty, saveRoute } from './models/routes'
+import {
+  ALTERNATIVE_SNAP_M, DIFFICULTY, deleteAlternative, deleteRoute, deleteVariant, missingAlternativeFields, missingRouteFields, missingVariantFields,
+  moveVariant, nearestOnRoute, routeHasDifficulty, saveAlternative, saveRoute, saveVariant,
+} from './models/routes'
 import {
   DEFAULT_STYLE, START_SNAP_M, addPath, deleteNetwork, insertNetworkVertex, missingNetworkFields, moveNetworkVertex, nearestOnNetwork,
   networkPath, networkStyle, readSnapM, removePart, saveNetwork, setNetworkGeometry, setNetworkStyle, setNetworkStyleAll,
@@ -39,6 +42,7 @@ import InfoList from './components/info/InfoList'
 import PointDetail from './components/info/PointDetail'
 import RouteList from './components/routes/RouteList'
 import RouteDetail from './components/routes/RouteDetail'
+import { AlternativeEditForm, RouteVariantEditFooter, RouteVariantsAdmin, VariantEditForm } from './components/routes/RouteVariantEditPanel'
 import { EditFooter, EditForm } from './components/worklog/EditPanel'
 import { OwnerEditFooter, OwnerEditForm } from './components/worklog/EditOwnerPanel'
 import { RouteEditFooter, RouteEditForm } from './components/worklog/RouteEditPanel'
@@ -99,6 +103,9 @@ const nearestArea = (areas, [lat, lng]) => {
 
 const isOwnerEdit = (edit) => edit?.kind === 'owner' || edit?.kind === 'parcel'
 const isRouteEdit = (edit) => edit?.kind === 'route'
+// 'route-alternative' (an alternative stretch drawn from the route) and 'route-variant' (a variant made of
+// them). Both belong to the route in draft.routeId.
+const isRouteSubEdit = (edit) => edit?.kind === 'route-alternative' || edit?.kind === 'route-variant'
 // 'network' (name etc. — plus the first path when new, or its lines to drag when not), 'network-path',
 // 'network-style' (a stretch between two clicks given a colour and line type) and 'network-remove'
 const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
@@ -107,11 +114,12 @@ const isNetworkEdit = (edit) => Boolean(edit?.kind?.startsWith('network'))
 const drawsPath = (edit) => edit?.kind === 'network-path' || (edit?.kind === 'network' && !edit.id)
 
 // The edit's geometry is built from several clicked vertices rather than a single point
-const accumulatesPoints = (edit) => edit?.kind === 'parcel' || edit?.kind === 'route' || drawsPath(edit)
+const accumulatesPoints = (edit) => edit?.kind === 'parcel' || edit?.kind === 'route' || edit?.kind === 'route-alternative' || drawsPath(edit)
   || (edit?.kind === 'entry' && Boolean(edit.draft.type) && entryGeomType(edit.draft) !== 'point')
 
 // 'poly' for closed shapes, 'line' for open ones — drives vertex minimums and the map preview
-const drawnGeomType = (edit) => (edit.kind === 'parcel' ? 'poly' : edit.kind === 'route' || drawsPath(edit) ? 'line' : entryGeomType(edit.draft))
+const drawnGeomType = (edit) => (edit.kind === 'parcel' ? 'poly'
+  : edit.kind === 'route' || edit.kind === 'route-alternative' || drawsPath(edit) ? 'line' : entryGeomType(edit.draft))
 
 const toDraftPoints = (entry) => (entry.geomType === 'poly' ? entry.latLngs.slice(0, -1) : entry.geomType === 'line' ? entry.latLngs : [])
 
@@ -338,8 +346,36 @@ export default function AdminApp({ userEmail, onSignOut }) {
 
   const editRoute = (r) => startEdit('route', r.id, {
     title: r.title, difficulty: r.difficulty, shape: r.shape, hub: r.hubId || '', climb: r.climb,
-    direction: r.direction, desc: r.desc, images: [...r.images], points: r.latLngs,
+    direction: r.direction, desc: r.desc, images: [...r.images], points: r.latLngs, variantName: r.variantName,
+    hasVariants: r.variants.length > 1,
   }, { placing: false })
+
+  // An alternative stretch is drawn in its route's colour, starting on the route
+  const newAlternative = (r) => startEdit('route-alternative', null, {
+    routeId: r.id, label: '', points: [], color: DIFFICULTY[r.difficulty].color,
+  }, { placing: true })
+
+  const editAlternative = (r, alt) => startEdit('route-alternative', alt.id, {
+    routeId: r.id, label: alt.label, points: alt.latLngs.map((ll) => [...ll]), color: DIFFICULTY[r.difficulty].color,
+  }, { placing: false })
+
+  const newVariant = (r) => startEdit('route-variant', null, {
+    routeId: r.id, name: '', difficulty: '', climb: '', desc: '', alternativeIds: [], preview: null,
+  }, { placing: false })
+
+  const editVariant = (r, v) => startEdit('route-variant', v.id, {
+    routeId: r.id, name: v.name, difficulty: v.difficulty || '', climb: v.climb, desc: v.desc, alternativeIds: [...v.alternativeIds], preview: null,
+  }, { placing: false })
+
+  const handleMoveVariant = async (r, variantId, step) => {
+    try {
+      await moveVariant(r, variantId, step)
+      await refreshRoutes()
+    } catch (error) {
+      console.error('Moving variant failed:', error)
+      flash(`Kunne ikke flytte: ${errorMessage(error)}`)
+    }
+  }
 
   const newNetwork = () => {
     startEdit('network', null, { name: '', hub: '', desc: '', points: [], ...DEFAULT_STYLE }, { placing: true, initialLL: area?.ll || null })
@@ -368,11 +404,17 @@ export default function AdminApp({ userEmail, onSignOut }) {
   // as it leaves it; the database ties an end that stops near the network onto it. Returns null for a
   // click that should be ignored.
   const snapVertex = useCallback((current, ll, index) => {
+    // An alternative stretch starts on its route the same way
+    if (current?.kind === 'route-alternative' && index === 0) {
+      const r = routes.find((x) => x.id === current.draft.routeId)
+      const near = r && nearestOnRoute(ll, r)
+      return near && near.distM <= ALTERNATIVE_SNAP_M ? near.ll : null
+    }
     if (current?.kind !== 'network-path' || index !== 0) return ll
     const target = networks.find((n) => n.id === current.id)
     const near = target && nearestOnNetwork(ll, target.parts)
     return near && near.distM <= START_SNAP_M ? near.ll : null
-  }, [networks])
+  }, [networks, routes])
 
   const updateDraft = useCallback((patch) => {
     setEdit((prev) => prev && { ...prev, draft: { ...prev.draft, ...patch } })
@@ -417,7 +459,7 @@ export default function AdminApp({ userEmail, onSignOut }) {
     }
     const vertex = accumulatesPoints(edit) ? snapVertex(edit, ll, edit.draft.points.length) : ll
     if (!vertex) {
-      flash('Start med å trykke på en sti i nettverket')
+      flash(edit.kind === 'route-alternative' ? 'Start med å trykke på ruta' : 'Start med å trykke på en sti i nettverket')
       return
     }
     setEdit((prev) => {
@@ -465,6 +507,8 @@ export default function AdminApp({ userEmail, onSignOut }) {
     const missing = edit.kind === 'owner' ? missingOwnerFields(edit.draft)
       : edit.kind === 'parcel' ? missingParcelFields(edit.draft)
         : edit.kind === 'route' ? missingRouteFields(edit.draft)
+          : edit.kind === 'route-alternative' ? missingAlternativeFields(edit.draft)
+            : edit.kind === 'route-variant' ? missingVariantFields(edit.draft)
           : isNetworkEdit(edit) ? missingNetworkFields(edit)
             : missingFields(edit)
     if (missing.length) {
@@ -512,6 +556,19 @@ export default function AdminApp({ userEmail, onSignOut }) {
         await refreshRoutes()
         selectRoute(id)
         flash(edit.id ? 'Ruta er oppdatert' : 'Ny rute opprettet')
+      } else if (edit.kind === 'route-alternative') {
+        const r = routes.find((x) => x.id === edit.draft.routeId)
+        const original = edit.id ? r.alternatives.find((a) => a.id === edit.id) : null
+        await saveAlternative(original, edit.draft, r)
+        await refreshRoutes()
+        flash(edit.id ? 'Strekningen er oppdatert' : 'Strekningen er lagt til')
+      } else if (edit.kind === 'route-variant') {
+        const r = routes.find((x) => x.id === edit.draft.routeId)
+        const original = edit.id ? r.variants.find((v) => v.id === edit.id) : null
+        const id = await saveVariant(original, edit.draft, r)
+        await refreshRoutes()
+        selectRoute(r.id, id)
+        flash(edit.id ? 'Varianten er oppdatert' : 'Ny variant opprettet')
       } else if (edit.kind === 'network') {
         const original = edit.id ? networks.find((n) => n.id === edit.id) : null
         const first = edit.draft.points?.[0]
@@ -602,6 +659,15 @@ export default function AdminApp({ userEmail, onSignOut }) {
         navigate({ mode: 'ruter' })
         flash('Ruta er slettet')
         await refreshRoutes()
+      } else if (edit.kind === 'route-alternative') {
+        await deleteAlternative({ id: edit.id })
+        flash('Strekningen er slettet')
+        await refreshRoutes()
+      } else if (edit.kind === 'route-variant') {
+        await deleteVariant({ id: edit.id })
+        selectRoute(edit.draft.routeId)
+        flash('Varianten er slettet')
+        await refreshRoutes()
       } else if (edit.kind === 'network') {
         await deleteNetwork(networks.find((n) => n.id === edit.id))
         navigate({ mode: 'stinettverk' })
@@ -659,6 +725,26 @@ export default function AdminApp({ userEmail, onSignOut }) {
           onStartDraw={restartDrawing}
           onUndoPoint={undoPoint}
           onFinishDraw={finishDrawing}
+        />
+      ) : edit.kind === 'route-alternative' ? (
+        <AlternativeEditForm
+          edit={edit}
+          route={routes.find((r) => r.id === edit.draft.routeId)}
+          placing={placing}
+          tried={tried}
+          onCancel={cancelEdit}
+          onChange={updateDraft}
+          onStartDraw={restartDrawing}
+          onUndoPoint={undoPoint}
+          onFinishDraw={finishDrawing}
+        />
+      ) : edit.kind === 'route-variant' ? (
+        <VariantEditForm
+          edit={edit}
+          route={routes.find((r) => r.id === edit.draft.routeId)}
+          tried={tried}
+          onCancel={cancelEdit}
+          onChange={updateDraft}
         />
       ) : isRouteEdit(edit) ? (
         <RouteEditForm
@@ -776,6 +862,16 @@ export default function AdminApp({ userEmail, onSignOut }) {
             onSelectPoint={selectPoint}
             onSelectOwner={selectOwner}
             onEditRoute={() => editRoute(route)}
+            admin={(
+              <RouteVariantsAdmin
+                route={route}
+                onNewAlternative={() => newAlternative(route)}
+                onEditAlternative={(alt) => editAlternative(route, alt)}
+                onNewVariant={() => newVariant(route)}
+                onEditVariant={(v) => editVariant(route, v)}
+                onMoveVariant={(id, step) => handleMoveVariant(route, id, step)}
+              />
+            )}
           />
         )
       }
@@ -850,6 +946,18 @@ export default function AdminApp({ userEmail, onSignOut }) {
             ) : isNetworkEdit(edit) ? (
               <NetworkEditFooter
                 edit={edit}
+                tried={tried}
+                saving={saving}
+                confirmDelete={confirmDelete}
+                saveError={saveError}
+                onSave={handleSave}
+                onDelete={handleDelete}
+                onCancel={cancelEdit}
+              />
+            ) : isRouteSubEdit(edit) ? (
+              <RouteVariantEditFooter
+                edit={edit}
+                route={routes.find((r) => r.id === edit.draft.routeId)}
                 tried={tried}
                 saving={saving}
                 confirmDelete={confirmDelete}
